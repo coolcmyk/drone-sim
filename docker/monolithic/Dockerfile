@@ -38,7 +38,7 @@ RUN apt-get update \
       build-essential cmake ninja-build pkg-config patch rsync wget unzip zip \
       python3 python3-pip python3-venv python3-argcomplete python3-empy python3-msgpack \
       lsb-release software-properties-common \
-      libeigen3-dev protobuf-compiler libxml2-utils bc \
+      libeigen3-dev liburdfdom-headers-dev protobuf-compiler libxml2-utils bc \
       xvfb libfuse2 fonts-dejavu-core openbox x11-utils \
       libopengl0 libegl1 libwayland-client0 \
       libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
@@ -58,7 +58,9 @@ RUN git clone https://github.com/ros2/ros2.git . \
  && test "$(git rev-parse HEAD)" = "${ROS2_REF}" \
  && vcs import src < ros2.repos \
  && rosdep update \
+ && apt-get update \
  && rosdep install --from-paths src --ignore-src --rosdistro jazzy -r -y \
+      --skip-keys "urdfdom_headers rti-connext-dds-6.0.1" \
  && colcon build --merge-install --install-base /opt/ros/jazzy \
  && test -x /opt/ros/jazzy/bin/ros2 \
  && /opt/ros/jazzy/bin/ros2 --help >/dev/null
