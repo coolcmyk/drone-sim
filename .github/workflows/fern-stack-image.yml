@@ -1,0 +1,91 @@
+name: Publish Fern Drone Sim runtime
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docker/monolithic/**
+      - docker/qgc-entrypoint.sh
+      - patches/cosys-airsim/**
+      - ros2_ws/**
+      - scripts/airsim_rpc_client.py
+      - sim/ue5/settings.json
+      - .github/workflows/fern-stack-image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: fern-drone-sim-image-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  UE_BASE_IMAGE: ghcr.io/coolcmyk/drone-sim-unreal-base:5.8-daac02628ea8
+  IMAGE: ghcr.io/coolcmyk/drone-sim
+
+jobs:
+  copy-unreal-base:
+    name: Refresh private Epic UE base
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Install skopeo
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes skopeo
+
+      - name: Verify Epic read credential
+        env:
+          EPIC_GHCR_USERNAME: ${{ secrets.EPIC_GHCR_USERNAME }}
+          EPIC_GHCR_READ_TOKEN: ${{ secrets.EPIC_GHCR_READ_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$EPIC_GHCR_USERNAME"
+          test -n "$EPIC_GHCR_READ_TOKEN"
+
+      - name: Stream pinned Epic UE base into Coolcmyk GHCR
+        env:
+          EPIC_GHCR_USERNAME: ${{ secrets.EPIC_GHCR_USERNAME }}
+          EPIC_GHCR_READ_TOKEN: ${{ secrets.EPIC_GHCR_READ_TOKEN }}
+          GHCR_PUSH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          source_image='ghcr.io/epicgames/unreal-engine@sha256:daac02628ea880513e18ccd1364b1cac949d40609b24c040d73872d8214a0c46'
+          skopeo copy --retry-times 3 \
+            --src-creds "${EPIC_GHCR_USERNAME}:${EPIC_GHCR_READ_TOKEN}" \
+            --dest-creds "${GITHUB_ACTOR}:${GHCR_PUSH_TOKEN}" \
+            "docker://${source_image}" "docker://${UE_BASE_IMAGE}"
+
+  build:
+    name: Build source-compatible Fern stack
+    needs: copy-unreal-base
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: docker/setup-buildx-action@8026d2b5ca51d503b7d5ea7191e6c10b2e7a3b9b # v3.10.0
+
+      - name: Log in to Coolcmyk GHCR
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish the Fern runtime
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: docker/monolithic/Dockerfile
+          build-args: UE_BASE_IMAGE=${{ env.UE_BASE_IMAGE }}
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:stack-${{ github.sha }}
+            ${{ env.IMAGE }}:stack-main
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=fern-drone-sim-monolithic
+          cache-to: type=gha,mode=max,scope=fern-drone-sim-monolithic
