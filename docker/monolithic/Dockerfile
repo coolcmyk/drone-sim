@@ -36,8 +36,7 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       ca-certificates curl git gnupg locales sudo \
       build-essential cmake ninja-build pkg-config patch rsync wget unzip zip \
-      python3 python3-pip python3-venv python3-rosdep python3-vcstool \
-      python3-colcon-common-extensions python3-argcomplete python3-empy python3-msgpack \
+      python3 python3-pip python3-venv python3-argcomplete python3-empy python3-msgpack \
       lsb-release software-properties-common \
       libeigen3-dev protobuf-compiler libxml2-utils bc \
       xvfb libfuse2 fonts-dejavu-core openbox x11-utils \
@@ -46,6 +45,7 @@ RUN apt-get update \
       libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 \
       libxcb-xkb1 libpulse0 libspeechd2 \
       x11vnc novnc websockify supervisor \
+ && python3 -m pip install --no-cache-dir rosdep vcstool colcon-common-extensions \
  && rm -rf /var/lib/apt/lists/* \
  && locale-gen C.UTF-8 \
  && rosdep init
