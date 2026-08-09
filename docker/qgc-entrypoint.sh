@@ -108,6 +108,44 @@ if command -v openbox >/dev/null 2>&1; then
   sleep 1
 fi
 
+start_vnc_viewer() {
+  case "${QGC_VNC_ENABLED:-0}" in
+    0) return 0 ;;
+    1) ;;
+    *) echo "qgc: QGC_VNC_ENABLED must be 0 or 1" >&2; exit 2 ;;
+  esac
+
+  if [ -z "${QGC_VNC_PASSWORD:-}" ]; then
+    echo "qgc: refusing to expose noVNC without QGC_VNC_PASSWORD" >&2
+    exit 2
+  fi
+
+  for command in x11vnc websockify; do
+    command -v "$command" >/dev/null 2>&1 || {
+      echo "qgc: $command is required when QGC_VNC_ENABLED=1" >&2; exit 1;
+    }
+  done
+  test -d /usr/share/novnc || { echo "qgc: /usr/share/novnc is required" >&2; exit 1; }
+
+  umask 077
+  local password_file
+  password_file="$(mktemp /tmp/qgc-vnc-password.XXXXXX)"
+  x11vnc -storepasswd "$QGC_VNC_PASSWORD" "$password_file" >/dev/null
+  unset QGC_VNC_PASSWORD
+  x11vnc -display "$DISPLAY_NUM" -rfbauth "$password_file" -localhost \
+    -rfbport 5900 -forever -shared > /tmp/x11vnc.log 2>&1 &
+  local x11vnc_pid=$!
+  sleep 1
+  kill -0 "$x11vnc_pid" 2>/dev/null || { cat /tmp/x11vnc.log >&2; exit 1; }
+
+  websockify --web /usr/share/novnc 6080 localhost:5900 > /tmp/novnc.log 2>&1 &
+  local novnc_pid=$!
+  sleep 1
+  kill -0 "$novnc_pid" 2>/dev/null || { cat /tmp/novnc.log >&2; exit 1; }
+  echo "qgc: noVNC listening on TCP 6080 (password required)"
+}
+
+start_vnc_viewer
 echo "qgc: starting QGroundControl on $DISPLAY_NUM (headless datalink)"
 exec setpriv --reuid=qgcuser --regid=qgcuser --clear-groups \
   env HOME=/home/qgcuser TMPDIR=/home/qgcuser/tmp DISPLAY="$DISPLAY_NUM" \

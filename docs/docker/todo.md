@@ -755,3 +755,48 @@ now, grows with every run; decide a destination before it is a problem.
 **Done when:** a fresh machine running **native Docker** reaches a flying stack from
 documented steps alone, and no image carries a `carbonite`-specific workaround without it
 being labelled as one.
+
+---
+
+## D-09 — Kubernetes runtime for the current multi-container simulator
+
+**Status:** `superseded` 2026-08-10 by D-10 — standard Runpod Pods remain the selected Fern target.
+
+**Why.** The UE5.8 renderer requires Epic's Jammy image while ROS 2 Jazzy requires Noble,
+so the current simulator cannot be flattened into one safe container. Standard Runpod Pods
+also cannot start Docker inside a workload. A Kubernetes Pod is the supported portable unit:
+its containers share one network and IPC namespace without needing nested Docker.
+
+**What.** Run Unreal, PX4, ROS 2/uXRCE-DDS and QGroundControl in one GPU Kubernetes Pod.
+Mount a 2 GiB memory-backed shared `/dev/shm`, an ephemeral shared work tree for the pinned
+Cosys-AirSim source, a persistent Unreal derived-data cache, and a Kubernetes Secret carrying
+the QGC noVNC password. Publish only QGC noVNC through a Service on TCP 6080; MAVLink, DDS,
+AirSim RPC and raw VNC remain Pod-local.
+
+**Acceptance.** A pinned-image manifest reaches the existing settle, simulator-link, ROS
+workspace and finite-EKF-origin gates; `kubectl port-forward` opens QGC noVNC and authenticates
+with the Secret; a seeded `run_gate.py` run retains its MCAP evidence. Fern applies, watches and
+tears down this workload through the active kubeconfig without requiring a Docker daemon.
+
+---
+
+## D-10 — Fern/Runpod full-stack runtime image
+
+**Status:** `in progress` · **Raised:** 2026-08-10.
+
+**Why.** Fern deploys standard Runpod Pods, which run one workload container and cannot
+launch the repository's native multi-container `sim_up.sh` stack. Fern therefore needs one
+published full-stack runtime image, not a Kubernetes-only deployment path or a collection of
+component image references that it cannot start together.
+
+**What.** Build a pinned, single-container image that starts Unreal/Cosys-AirSim, PX4 SITL,
+ROS 2 Jazzy with the uXRCE-DDS agent, and QGroundControl under a supervisor. Publish noVNC on
+TCP 6080 only; MAVLink, DDS, AirSim RPC and raw VNC remain loopback-only. The build must not
+copy Noble libraries into the Jammy Unreal image: it must use one compatible runtime base and
+prove the engine, ROS graph and QGC datalink together.
+
+**Acceptance.** A tagged and digest-pinned GHCR image starts through Fern on a GPU Runpod Pod,
+reaches the existing settle, simulator-link, ROS workspace and finite-EKF-origin gates, and
+keeps the Pod running after the readiness check. Fern exposes the noVNC URL and authenticates
+with its configured password; a seeded `run_gate.py` run retains MCAP evidence. The run needs
+no Docker daemon or Kubernetes cluster inside the Pod.

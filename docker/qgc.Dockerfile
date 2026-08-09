@@ -63,9 +63,11 @@ RUN apt-get update \
         libopengl0 libegl1 libwayland-client0 \
         libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
         libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 \
+        x11vnc novnc websockify \
         libxcb-xkb1 libpulse0 libspeechd2 \
     && rm -rf /var/lib/apt/lists/* \
-    && echo "qgc runtime (xvfb + Qt xcb deps)" >> /etc/drone-sim-versions
+    && echo "qgc runtime (xvfb + Qt xcb deps)" >> /etc/drone-sim-versions \
+    && echo "qgc viewer (opt-in x11vnc + noVNC)" >> /etc/drone-sim-versions
 
 # Fetch QGC, VERIFY IT, and extract it once at build time.
 #
