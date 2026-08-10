@@ -443,6 +443,9 @@ renderer:
 
   ros2:
     distro: jazzy          # one distro across the whole project
+    source_runtime_dependencies:
+      vision_opencv: "4.1.0 @ f5b738d9694f0cee5904440d03912fc249943f8a (cv_bridge)"
+      perception_pcl: "2.6.5 @ 3128bdf505ab1616fd10581080ef46de972f964b (pcl_conversions)"
     rationale: see decisions_2026_07_31.ros2_distro
     status: observed       # built and running
   ros2_distro_fallback: >-

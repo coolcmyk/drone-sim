@@ -10,6 +10,8 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 USER root
 
 ARG ROS2_REF=cf1dbea3c2df5b3c07ad39dc9dcdb02c5b076325
+ARG VISION_OPENCV_SHA=f5b738d9694f0cee5904440d03912fc249943f8a
+ARG PERCEPTION_PCL_SHA=3128bdf505ab1616fd10581080ef46de972f964b
 ARG PX4_TAG=v1.16.0
 ARG PX4_SHA=6ea3539157ca358c70a515878b77077af7d4611d
 ARG XRCE_TAG=v2.4.3
@@ -58,13 +60,19 @@ RUN git clone https://github.com/ros2/ros2.git . \
  && git checkout --detach "${ROS2_REF}" \
  && test "$(git rev-parse HEAD)" = "${ROS2_REF}" \
  && vcs import src < ros2.repos \
+ && git clone https://github.com/ros-perception/vision_opencv.git src/vision_opencv \
+ && git -C src/vision_opencv checkout --detach "${VISION_OPENCV_SHA}" \
+ && test "$(git -C src/vision_opencv rev-parse HEAD)" = "${VISION_OPENCV_SHA}" \
+ && git clone https://github.com/ros-perception/perception_pcl.git src/perception_pcl \
+ && git -C src/perception_pcl checkout --detach "${PERCEPTION_PCL_SHA}" \
+ && test "$(git -C src/perception_pcl rev-parse HEAD)" = "${PERCEPTION_PCL_SHA}" \
  && rosdep update \
  && apt-get update \
  && rosdep install --from-paths src --ignore-src --rosdistro jazzy -r -y \
       --skip-keys "urdfdom_headers rti-connext-dds-6.0.1 python3-catkin-pkg-modules python3-vcstool python3-rosdistro-modules" \
  && colcon build --merge-install --install-base /opt/ros/jazzy --packages-up-to \
       rclcpp rclpy launch_ros ros2topic ros2bag rosbag2_storage_mcap \
-      rmw_fastrtps_cpp tf2_ros tf2_geometry_msgs image_transport cv_bridge \
+      rmw_fastrtps_cpp tf2_ros tf2_geometry_msgs tf2_sensor_msgs image_transport cv_bridge pcl_conversions \
  && test -x /opt/ros/jazzy/bin/ros2 \
  && /opt/ros/jazzy/bin/ros2 --help >/dev/null
 
@@ -124,6 +132,7 @@ RUN mkdir -p /airsim_root \
       grep -qE '^\+\+\+ b/Unreal/' "$patch_file" || patch -d /airsim_root -p1 --forward --batch < "$patch_file"; \
     done \
  && source /opt/ros/jazzy/setup.bash \
+ && source /opt/drone-sim/ros2_ws/install/setup.bash \
  && cd /airsim_root/ros2 \
  && colcon build --merge-install \
  && test -x install/airsim_ros_pkgs/lib/airsim_ros_pkgs/airsim_node
