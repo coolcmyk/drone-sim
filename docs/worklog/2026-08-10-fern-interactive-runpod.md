@@ -40,3 +40,14 @@ Fern's publisher also deletes known unused SDKs from its ephemeral GitHub runner
 
 The work is deliberately described as unverified end-to-end until the published image has been
 started through Fern and the browser desktop plus finite-EKF-origin readiness are observed.
+
+## Dependency-closure audit update
+
+The first reduced build failed before compilation because core `ros2.repos` does not include
+`cv_bridge`. The complete wrapper manifests were then checked at their pinned source revisions.
+Cosys-AirSim declares `pcl_conversions` as well as `mavros_msgs`, `geographic_msgs`, TF,
+image transport and standard ROS interfaces. `mavros_msgs` and `geographic_msgs` are built in
+the project overlay, so the wrapper build now sources that overlay. The two missing core-overlay
+sources are pinned from the official Jazzy releases: `vision_opencv` 4.1.0 for `cv_bridge` and
+`perception_pcl` 2.6.5 for `pcl_conversions`. This is a manifest audit, not an image-build claim;
+the next GitHub Actions run remains the compilation proof.
