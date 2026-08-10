@@ -793,8 +793,8 @@ component image references that it cannot start together.
 source-built Jazzy runtime. To fit GitHub-hosted-runner disk, the Jazzy build is deliberately
 limited to the required runtime dependency closure (ROS CLI, launch, Fast-DDS, MCAP,
 rclcpp/rclpy, TF and image transport); desktop, demo and test packages are not workload
-requirements. The source closure explicitly includes `vision_opencv` 4.1.0 (`cv_bridge`) and
-`perception_pcl` 2.6.5 (`pcl_conversions`), both pinned by immutable commit. This avoids
+requirements. The source closure explicitly includes `vision_opencv` 4.1.0 (`cv_bridge`), `perception_pcl` 2.6.5
+(`pcl_conversions`) and `pcl_msgs` 1.0.0, each pinned by immutable commit. This avoids
 mistaking an incomplete core `ros2.repos` manifest for a successful runtime closure. The image
 boots as an interactive GPU machine rather than auto-starting flight services. The user starts
 `/opt/drone-sim/scripts/sim_up_local.sh --detach` inside the Pod; it starts Unreal/Cosys-AirSim,
