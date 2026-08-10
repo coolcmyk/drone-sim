@@ -12,6 +12,7 @@ USER root
 ARG ROS2_REF=cf1dbea3c2df5b3c07ad39dc9dcdb02c5b076325
 ARG VISION_OPENCV_SHA=f5b738d9694f0cee5904440d03912fc249943f8a
 ARG PERCEPTION_PCL_SHA=3128bdf505ab1616fd10581080ef46de972f964b
+ARG PCL_MSGS_SHA=16c4174b4903982c8b031672c8cfcdd16a7430dc
 ARG PX4_TAG=v1.16.0
 ARG PX4_SHA=6ea3539157ca358c70a515878b77077af7d4611d
 ARG XRCE_TAG=v2.4.3
@@ -62,10 +63,12 @@ RUN git clone https://github.com/ros2/ros2.git . \
  && vcs import src < ros2.repos \
  && git clone https://github.com/ros-perception/vision_opencv.git src/vision_opencv \
  && git -C src/vision_opencv checkout --detach "${VISION_OPENCV_SHA}" \
- && test "$(git -C src/vision_opencv rev-parse HEAD)" = "${VISION_OPENCV_SHA}" \
  && git clone https://github.com/ros-perception/perception_pcl.git src/perception_pcl \
  && git -C src/perception_pcl checkout --detach "${PERCEPTION_PCL_SHA}" \
  && test "$(git -C src/perception_pcl rev-parse HEAD)" = "${PERCEPTION_PCL_SHA}" \
+ && git clone https://github.com/ros-perception/pcl_msgs.git src/pcl_msgs \
+ && git -C src/pcl_msgs checkout --detach "${PCL_MSGS_SHA}" \
+ && test "$(git -C src/pcl_msgs rev-parse HEAD)" = "${PCL_MSGS_SHA}" \
  && rosdep update \
  && apt-get update \
  && rosdep install --from-paths src --ignore-src --rosdistro jazzy -r -y \

@@ -51,3 +51,8 @@ the project overlay, so the wrapper build now sources that overlay. The two miss
 sources are pinned from the official Jazzy releases: `vision_opencv` 4.1.0 for `cv_bridge` and
 `perception_pcl` 2.6.5 for `pcl_conversions`. This is a manifest audit, not an image-build claim;
 the next GitHub Actions run remains the compilation proof.
+
+The first full compile then proved one remaining direct dependency: `pcl_conversions` requires
+`pcl_msgs`, which has no Jammy rosdep binary mapping. `pcl_msgs` 1.0.0 is now pinned from its
+upstream ROS 2 source alongside `perception_pcl`; source presence makes rosdep ignore that key
+and lets colcon build the message package before `pcl_conversions`.
