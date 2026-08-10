@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Interactive Drone Sim Pod for Fern — 2026-08-10</title><style>body{max-width:900px;margin:3rem auto;padding:0 1.25rem;background:#e6e7e1;color:#161a18;font:16px/1.6 system-ui,sans-serif}h1,h2{line-height:1.2;border-bottom:2px solid #161a18;padding-bottom:.35rem}code,pre{font-family:ui-monospace,monospace}pre{background:#1b211e;color:#d8dcd4;padding:1rem;overflow:auto}a{color:#0e5c64}</style></head><body>
+<p><a href="index.html">Worklog index</a> · 2026-08-10 · SITL only</p>
+<h1>Interactive Drone Sim Pod for Fern</h1>
+<p>Fern now creates a fresh Runpod GPU Pod with an immediately available, password-protected noVNC desktop. The user starts the simulator from its terminal rather than requiring Docker inside the Pod.</p>
+<h2>Operator hand-off</h2><pre>/opt/drone-sim/scripts/sim_up_local.sh --detach</pre>
+<p>The local launcher starts Unreal/Cosys-AirSim, Micro-XRCE-DDS Agent, QGroundControl and PX4 SITL. QGroundControl reuses the desktop, while MAVLink, DDS, AirSim RPC and raw VNC remain Pod-local.</p>
+<h2>Build constraint</h2><p>Jazzy is source-built on the UE-compatible Jammy base. Its build is limited to the runtime dependency closure and the Fern publisher reclaims unused GitHub-hosted-runner disk before Buildx.</p>
+<h2>Verification status</h2><p>Shell syntax and diff validation passed. End-to-end image build, Fern deployment, browser noVNC and readiness-gate verification remain pending the published image.</p>
+</body></html>

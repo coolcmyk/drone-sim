@@ -39,7 +39,7 @@ RUN apt-get update \
       python3 python3-pip python3-venv python3-argcomplete python3-empy python3-msgpack \
       lsb-release software-properties-common \
       libeigen3-dev liburdfdom-headers-dev protobuf-compiler libxml2-utils bc \
-      xvfb libfuse2 fonts-dejavu-core openbox x11-utils \
+      xvfb libfuse2 fonts-dejavu-core openbox x11-utils xterm \
       libopengl0 libegl1 libwayland-client0 \
       libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
       libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 \
@@ -62,7 +62,9 @@ RUN git clone https://github.com/ros2/ros2.git . \
  && apt-get update \
  && rosdep install --from-paths src --ignore-src --rosdistro jazzy -r -y \
       --skip-keys "urdfdom_headers rti-connext-dds-6.0.1 python3-catkin-pkg-modules python3-vcstool python3-rosdistro-modules" \
- && colcon build --merge-install --install-base /opt/ros/jazzy \
+ && colcon build --merge-install --install-base /opt/ros/jazzy --packages-up-to \
+      rclcpp rclpy launch_ros ros2topic ros2bag rosbag2_storage_mcap \
+      rmw_fastrtps_cpp tf2_ros tf2_geometry_msgs image_transport cv_bridge \
  && test -x /opt/ros/jazzy/bin/ros2 \
  && /opt/ros/jazzy/bin/ros2 --help >/dev/null
 
@@ -150,15 +152,18 @@ RUN curl -fL --retry 3 -o /tmp/qgc.AppImage "${QGC_URL}" \
 
 COPY docker/qgc-entrypoint.sh /usr/local/bin/qgc-entrypoint.sh
 COPY docker/monolithic/entrypoint.sh /usr/local/bin/drone-sim-entrypoint
+COPY docker/monolithic/interactive-entrypoint.sh /usr/local/bin/drone-sim-interactive-entrypoint
+COPY docker/monolithic/vnc-desktop.sh /usr/local/bin/drone-sim-vnc-desktop
 COPY docker/monolithic/wait-for-settle.sh /usr/local/bin/drone-sim-wait-for-settle
 COPY docker/monolithic/start-px4.sh /usr/local/bin/drone-sim-start-px4
 COPY docker/monolithic/readiness.sh /usr/local/bin/drone-sim-readiness
+COPY scripts/sim_up_local.sh /opt/drone-sim/scripts/sim_up_local.sh
 COPY docker/monolithic/supervisord.conf /etc/supervisor/conf.d/drone-sim.conf
 COPY scripts/airsim_rpc_client.py /opt/drone-sim/scripts/airsim_rpc_client.py
 COPY sim/ue5/settings.json /opt/drone-sim/settings.json
-RUN chmod 0755 /usr/local/bin/qgc-entrypoint.sh /usr/local/bin/drone-sim-entrypoint /usr/local/bin/drone-sim-wait-for-settle /usr/local/bin/drone-sim-start-px4 /usr/local/bin/drone-sim-readiness \
+RUN chmod 0755 /usr/local/bin/qgc-entrypoint.sh /usr/local/bin/drone-sim-entrypoint /usr/local/bin/drone-sim-interactive-entrypoint /usr/local/bin/drone-sim-vnc-desktop /usr/local/bin/drone-sim-wait-for-settle /usr/local/bin/drone-sim-start-px4 /usr/local/bin/drone-sim-readiness /opt/drone-sim/scripts/sim_up_local.sh \
  && mkdir -p /var/log/drone-sim /home/ue4/.config/Epic \
  && chown -R ue4:ue4 /var/log/drone-sim /home/ue4/.config/Epic
 
 EXPOSE 6080
-ENTRYPOINT ["/usr/local/bin/drone-sim-entrypoint"]
+ENTRYPOINT ["/usr/local/bin/drone-sim-interactive-entrypoint"]

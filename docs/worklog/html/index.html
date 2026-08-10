@@ -106,14 +106,21 @@ footer{margin-top:70px;border-top:3px solid var(--ink);padding-top:16px;font-fam
   <div class="mastmeta">
     <span>Entries <b>18</b></span>
     <span>Newest <b>2026-08-08</b></span>
-  </div>
-</header>
+    <span>Entries <b>19</b></span>
+    <span>Newest <b>2026-08-10</b></span>
 
 <section id="logs">
 <span class="secnum">§ 1 · ENTRIES</span>
 <h2>Worklogs</h2>
 
 <div class="grid g2">
+  <a class="card" href="2026-08-10-fern-interactive-runpod.html">
+    <span class="k">2026-08-10 · D-10 · newest</span>
+    <h3>An Interactive Pod, Not Nested Docker</h3>
+    <p>Fern's standard Runpod Pod is now the runtime boundary: an interactive Jammy image starts a password-protected noVNC desktop and terminal before any simulator service. The operator starts the Pod-local Unreal, XRCE, QGroundControl and PX4 graph with <code>sim_up_local.sh --detach</code>. The source-built Jazzy runtime is narrowed to its dependency closure after the hosted build reached ROS compilation and ran out of disk. End-to-end image, browser and finite-EKF verification remain explicitly pending.</p>
+    <div class="tags"><span class="pill p-chrome">noVNC before sim start</span><span class="pill p-warn">source Jazzy on Jammy</span><span class="pill p-stop">e2e pending</span></div>
+  </a>
+
   <a class="card" href="2026-08-08-sim23-gpulidar-empty-readback.html">
     <span class="k">2026-08-08 · SIM-23 · newest</span>
     <h3>A Frame That Was Never Read</h3>
