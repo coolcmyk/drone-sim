@@ -1,0 +1,6 @@
+Sphinx>=8,<9
+myst-parser>=4,<5
+sphinx-copybutton>=0.5,<1
+sphinx-rtd-theme>=3,<4
+sphinx-autobuild>=2024.10
+linkify-it-py>=2,<4

@@ -3133,7 +3133,6 @@ on the evidence drive is not worth it; new runs are correct.
 
 ---
 
----
 
 ## `SIM-27` — a landing that never terminates, and physics that disagrees with the render
 
