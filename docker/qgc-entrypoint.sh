@@ -30,21 +30,23 @@ fi
 # and Xvfb then refuses with "Server is already active for display 99" — turning ONE
 # failure into a permanent restart loop that outlives the original cause. Observed while
 # testing a missing-AppImage start.
-rm -f "/tmp/.X${DISPLAY_NUM#:}-lock" 2>/dev/null || true
-rm -f "/tmp/.X11-unix/X${DISPLAY_NUM#:}" 2>/dev/null || true
+if [ "${QGC_USE_EXISTING_DISPLAY:-0}" != "1" ]; then
+  rm -f "/tmp/.X${DISPLAY_NUM#:}-lock" 2>/dev/null || true
+  rm -f "/tmp/.X11-unix/X${DISPLAY_NUM#:}" 2>/dev/null || true
 
-# -ac and the extensions are NOT optional: without them the Qt/GL app dies mid-session
-# with "XIO: fatal IO error 2 on X server". Cost an afternoon during the Phase 0 demo.
-Xvfb "$DISPLAY_NUM" -screen 0 "${RES}x24" \
-  -ac +extension GLX +extension RANDR +render -noreset -nolisten tcp \
-  > /tmp/xvfb.log 2>&1 &
-XVFB_PID=$!
-sleep 3
+  # -ac and the extensions are NOT optional: without them the Qt/GL app dies mid-session
+  # with "XIO: fatal IO error 2 on X server". Cost an afternoon during the Phase 0 demo.
+  Xvfb "$DISPLAY_NUM" -screen 0 "${RES}x24" \
+    -ac +extension GLX +extension RANDR +render -noreset -nolisten tcp \
+    > /tmp/xvfb.log 2>&1 &
+  XVFB_PID=$!
+  sleep 3
 
-if ! kill -0 "$XVFB_PID" 2>/dev/null; then
-  echo "qgc: Xvfb failed to start" >&2
-  cat /tmp/xvfb.log >&2
-  exit 1
+  if ! kill -0 "$XVFB_PID" 2>/dev/null; then
+    echo "qgc: Xvfb failed to start" >&2
+    cat /tmp/xvfb.log >&2
+    exit 1
+  fi
 fi
 
 # Seed QGC's own saved window geometry so it STARTS at the size it should be.
@@ -102,8 +104,8 @@ chown -R qgcuser:qgcuser "$QGC_CONF"
 # or unpacked here any more: the image already holds the extracted tree at $QGC_APPRUN.
 
 # A window manager is required or Qt apps misbehave (and nothing can be tiled later).
-# Started here rather than in `recording` because this service owns the display.
-if command -v openbox >/dev/null 2>&1; then
+# The interactive Pod owns one before QGC starts, so do not create a second manager.
+if [ "${QGC_USE_EXISTING_DISPLAY:-0}" != "1" ] && command -v openbox >/dev/null 2>&1; then
   openbox > /tmp/openbox.log 2>&1 &
   sleep 1
 fi
@@ -145,7 +147,9 @@ start_vnc_viewer() {
   echo "qgc: noVNC listening on TCP 6080 (password required)"
 }
 
-start_vnc_viewer
+if [ "${QGC_USE_EXISTING_DISPLAY:-0}" != "1" ]; then
+  start_vnc_viewer
+fi
 echo "qgc: starting QGroundControl on $DISPLAY_NUM (headless datalink)"
 exec setpriv --reuid=qgcuser --regid=qgcuser --clear-groups \
   env HOME=/home/qgcuser TMPDIR=/home/qgcuser/tmp DISPLAY="$DISPLAY_NUM" \

@@ -789,14 +789,22 @@ launch the repository's native multi-container `sim_up.sh` stack. Fern therefore
 published full-stack runtime image, not a Kubernetes-only deployment path or a collection of
 component image references that it cannot start together.
 
-**What.** Build a pinned, single-container image that starts Unreal/Cosys-AirSim, PX4 SITL,
-ROS 2 Jazzy with the uXRCE-DDS agent, and QGroundControl under a supervisor. Publish noVNC on
-TCP 6080 only; MAVLink, DDS, AirSim RPC and raw VNC remain loopback-only. The build must not
-copy Noble libraries into the Jammy Unreal image: it must use one compatible runtime base and
-prove the engine, ROS graph and QGC datalink together.
+**What.** Build a pinned, single-container image with a UE-compatible Jammy base and a
+source-built Jazzy runtime. To fit GitHub-hosted-runner disk, the Jazzy build is deliberately
+limited to the required runtime dependency closure (ROS CLI, launch, Fast-DDS, MCAP,
+rclcpp/rclpy, TF and image transport); desktop, demo and test packages are not workload
+requirements. The image boots as an interactive GPU machine rather than auto-starting flight
+services. The user starts `/opt/drone-sim/scripts/sim_up_local.sh --detach` inside the Pod;
+it starts Unreal/Cosys-AirSim, PX4 SITL, the uXRCE-DDS agent and QGroundControl without Docker.
 
-**Acceptance.** A tagged and digest-pinned GHCR image starts through Fern on a GPU Runpod Pod,
-reaches the existing settle, simulator-link, ROS workspace and finite-EKF-origin gates, and
-keeps the Pod running after the readiness check. Fern exposes the noVNC URL and authenticates
-with its configured password; a seeded `run_gate.py` run retains MCAP evidence. The run needs
-no Docker daemon or Kubernetes cluster inside the Pod.
+With Fern's `--vnc-viewer`, the image immediately starts a password-protected Xvfb/openbox/noVNC
+desktop on TCP 6080 and shows an xterm. The user can therefore open the Fern-provided noVNC URL
+first, run the launcher there, then watch QGroundControl on the same display. MAVLink, DDS,
+AirSim RPC and raw VNC remain loopback-only. The build must not copy Noble libraries into the
+Jammy Unreal image.
+
+**Acceptance.** A tagged and digest-pinned GHCR image creates a fresh GPU Runpod Pod through
+Fern. `fern deploy --profile drone-sim-stack --vnc-viewer --yes` returns its authenticated noVNC
+URL (default password `root`); the desktop is usable before simulation start, and the local
+launcher reaches the existing settle, simulator-link, ROS workspace and finite-EKF-origin gates.
+The run needs neither a Docker daemon nor a Kubernetes cluster inside the Pod.
