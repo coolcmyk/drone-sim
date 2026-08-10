@@ -5,8 +5,8 @@ Upstream: https://github.com/Cosys-Lab/Cosys-AirSim
 migrated 5.5 → 5.6dev → 5.7pdev → 5.8, and there is no `5.5` branch upstream at all).
 
 **The vendored tree is byte-identical to upstream.** `git status --porcelain vendor/` reports
-zero modifications. The three applied deviations below live in `patches/cosys-airsim/` and are
-applied by `scripts/build_airsim_wrapper.sh` to a **container-local copy** at `/airsim_root`,
+zero modifications. The three applied deviations below live in `simulator/unreal/patches/cosys-airsim/` and are
+applied by `runtime/local/build_airsim_wrapper.sh` to a **container-local copy** at `/airsim_root`,
 never to `vendor/`.
 
 **All three are upstream defects, not local preferences, and all three are worth reporting to
@@ -18,10 +18,10 @@ configuration every image-quality measurement on 2026-08-03 was taken against �
 findings apply to vanilla Cosys-AirSim, not to a patched tree.
 
 > **A fourth patch exists and is deliberately NOT applied.**
-> `patches/cosys-airsim/experimental/0004-scene-capture-ldr.patch` changes the `Scene` capture
+> `simulator/unreal/patches/cosys-airsim/experimental/0004-scene-capture-ldr.patch` changes the `Scene` capture
 > source from `SCS_FinalToneCurveHDR` to `SCS_FinalColorLDR` (`PIPCamera.cpp:178`). It is the
 > only patch that would touch the **UE plugin**, and it is excluded because the build script
-> globs `patches/cosys-airsim/*.patch` — the `experimental/` subdirectory is outside that glob.
+> globs `simulator/unreal/patches/cosys-airsim/*.patch` — the `experimental/` subdirectory is outside that glob.
 >
 > **It has never actually run.** It was built and deployed on 2026-08-02 and recorded as a
 > negative result, but on 2026-08-03 the plugin loader was found to have been resolving a
@@ -35,7 +35,7 @@ findings apply to vanilla Cosys-AirSim, not to a patched tree.
 > and Lumen GI being explicitly disabled). With those addressed on the **stock** plugin,
 > AirSim's capture matches Unreal's own render of the same view to 1.15 of 255.
 >
-> See `patches/cosys-airsim/experimental/README.md` and
+> See `simulator/unreal/patches/cosys-airsim/experimental/README.md` and
 > `docs/worklog/2026-08-03-c11-washout-root-cause.md`.
 
 > **Line endings.** Cosys-AirSim sources are **CRLF**. A hand-written LF hunk fails with
@@ -192,7 +192,7 @@ untouched, because nothing in this project drives a car.
 **Wired into the build on 2026-08-08** (`SIM-23`). This previously read *"not yet wired into the
 build"*: `inject_airsim.py` copies the **built** plugin from Blocks, so the patch only reaches a
 user world once Blocks' plugin is rebuilt with it applied — and nothing rebuilt Blocks. It was
-verified by hand-patching the injected copy. `scripts/build_blocks.sh` now does it, and running
+verified by hand-patching the injected copy. `runtime/local/build_blocks.sh` now does it, and running
 it confirmed the gap was real: 0005 was **not** present in the Blocks plugin, five days after it
 landed. Every world injected from Blocks in that window carried an unpatched plugin.
 
@@ -293,7 +293,7 @@ and a 1328 Hz state timer polling a 333 Hz IMU into 77% duplicate samples.
 
 Affects `control`, `img_response`, `lidar`, `gpulidar`, `echo`.
 
-**No patch: `ros2_ws/src/bringup/launch/perception.launch.py` passes all five**, with
+**No patch: `ros2/src/bringup/launch/perception.launch.py` passes all five**, with
 `value_type=float` forced — a bare `LaunchConfiguration` arrives as a *string*, and
 `get_parameter(name, double&)` fails a type mismatch exactly as it fails an undeclared name,
 leaving the same uninitialized value. The workaround would have looked applied and changed
@@ -412,7 +412,7 @@ enough to time out PX4's MAVLink link and produce the EPIPE *before* the crash s
 
 ### Soak result — 2026-08-03: NOT REPRODUCED, and both hypotheses refuted
 
-`scripts/soak_capture.py` (A/B) and `scripts/soak_full_stack.sh` (arm C). GPU 0 only.
+`runtime/local/soak_capture.py` (A/B) and `runtime/local/soak_full_stack.sh` (arm C). GPU 0 only.
 
 | arm | configuration | result |
 |---|---|---|
@@ -459,7 +459,7 @@ reproduce it.** If it recurs, capture the full simulator log and the wrapper's s
 
 1. The wrapper needs `geographic_msgs`, `mavros_msgs` and `python3-msgpack`, and CMake fails
    at `find_package` without the first two. **`drone-sim/ros2:v1.16.0` now bakes all three in**
-   (`docker/ros2.Dockerfile`), so the build script's install step finds nothing to do. It is
+   (`containers/legacy/ros2.Dockerfile`), so the build script's install step finds nothing to do. It is
    kept anyway, as an idempotent `dpkg -s` check: it used to apt-install them *inside the
    running container*, which meant the dependency lived only in that container's writable
    layer and vanished on every teardown — a network outage between two runs turned a working
@@ -469,5 +469,5 @@ reproduce it.** If it recurs, capture the full simulator log and the wrapper's s
 3. The build **writes into its own source tree** (`external/rpclib/.../version.h`,
    `config.h` via `configure_file`), so it cannot be built from a read-only mount.
 
-All three are handled by `scripts/build_airsim_wrapper.sh`, which also asserts the artifact of
+All three are handled by `runtime/local/build_airsim_wrapper.sh`, which also asserts the artifact of
 each patch rather than trusting `patch`'s exit code.

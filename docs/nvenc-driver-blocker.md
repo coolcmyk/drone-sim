@@ -129,7 +129,7 @@ day's work:
 
 1. `ffmpeg -f lavfi -i testsrc2=... -c:v h264_nvenc` — encodes without
    `OpenEncodeSessionEx failed`.
-2. **The whole simulator still comes up on the new driver** — `./scripts/sim_up.sh` reaches
+2. **The whole simulator still comes up on the new driver** — `./runtime/local/sim_up.sh` reaches
    `stack up and origin verified`. The renderer is a Vulkan client of the same driver, so a
    driver swap can take away more than it gives; check the thing that flies before the thing
    that records.

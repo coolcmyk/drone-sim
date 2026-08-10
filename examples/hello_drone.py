@@ -10,8 +10,8 @@ imported from this repo. Copy it, change the waypoint, and you have your own cli
 RUN IT (the stack must already be up, and this must run INSIDE sim-ros2, which is where ROS 2
 and px4_msgs live):
 
-    ./scripts/sim_up.sh
-    ./scripts/build_airsim_wrapper.sh          # only if you want the camera; see below
+    ./runtime/local/sim_up.sh
+    ./runtime/local/build_airsim_wrapper.sh          # only if you want the camera; see below
     docker cp examples/hello_drone.py sim-ros2:/tmp/
     docker exec -it sim-ros2 bash -lc \\
       'source /opt/ros/jazzy/setup.bash; source /ros2_ws/install/setup.bash; \\
@@ -27,7 +27,7 @@ THE FOUR THINGS THAT SILENTLY GIVE YOU NOTHING
 2. Offboard mode needs setpoints ALREADY FLOWING before you ask for it. PX4 rejects the mode
    switch if it is not receiving a stream, so the loop below publishes for a second first.
 3. Camera topics only exist if `airsim_node` is running, and `sim_up.sh` does NOT start it --
-   it is built and launched by `scripts/build_airsim_wrapper.sh`. Without that, `/fmu/*` works
+   it is built and launched by `runtime/local/build_airsim_wrapper.sh`. Without that, `/fmu/*` works
    and every `/airsim_node/*` topic is simply absent. This script says so rather than hanging.
 4. Frames. Setpoints here are NED and Z is NEGATIVE UP: -5.0 means five metres above home, and
    +5.0 flies into the ground.
@@ -155,7 +155,7 @@ def main() -> int:
     if n.image is None:
         print(f"image     : NONE on {IMAGE_TOPIC}\n"
               f"            airsim_node is not running -- sim_up.sh does not start it.\n"
-              f"            Run ./scripts/build_airsim_wrapper.sh for camera topics.")
+              f"            Run ./runtime/local/build_airsim_wrapper.sh for camera topics.")
     else:
         i = n.image
         print(f"image     : {i.width}x{i.height} {i.encoding}, {len(i.data)} bytes, "

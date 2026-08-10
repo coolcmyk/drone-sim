@@ -37,10 +37,10 @@ container, never the host.
 ```bash
 gh auth token | docker login ghcr.io -u <github-user> --password-stdin
 
-docker build -f docker/px4.Dockerfile    -t drone-sim/px4:v1.16.0 .
-docker build -f docker/qgc.Dockerfile    -t drone-sim/qgc:v1.16.0 .
-docker build -f docker/ros2.Dockerfile   -t drone-sim/ros2:v1.16.0 .
-docker build -f docker/unreal.Dockerfile -t drone-sim/unreal:ue5.8 .
+docker build -f containers/legacy/px4.Dockerfile    -t drone-sim/px4:v1.16.0 .
+docker build -f containers/legacy/qgc.Dockerfile    -t drone-sim/qgc:v1.16.0 .
+docker build -f containers/legacy/ros2.Dockerfile   -t drone-sim/ros2:v1.16.0 .
+docker build -f containers/legacy/unreal.Dockerfile -t drone-sim/unreal:ue5.8 .
 ```
 
 **Order does not matter** — every image builds from `ubuntu:24.04`, or the Epic image for the
@@ -61,7 +61,7 @@ copies only `build/px4_sitl_default` out of it.
 ### 0.2 Fetch the pinned upstreams and build the plugin once
 
 ```bash
-vcs import vendor < .repos          # ~1.3 GB — Cosys-AirSim at a pinned SHA, not a branch
+vcs import vendor < third_party/sources.repos          # ~1.3 GB — Cosys-AirSim at a pinned SHA, not a branch
 
 docker run --rm -v "$PWD/vendor/Cosys-AirSim:/src" drone-sim/unreal:ue5.8 \
   bash -lc './build.sh --ue-root /home/ue4/UnrealEngine'
@@ -72,16 +72,16 @@ docker run --rm -v "$PWD/vendor/Cosys-AirSim:/src" drone-sim/unreal:ue5.8 \
 > at all rather than a graceful fallback.
 
 Upstream's `build.sh` compiles **pristine** vendor source. The repo's own fixes to the Unreal
-plugin live in `patches/cosys-airsim/` and are applied by a second step:
+plugin live in `simulator/unreal/patches/cosys-airsim/` and are applied by a second step:
 
 ```bash
-./scripts/build_blocks.sh          # apply the Unreal-side patches to Blocks, then rebuild
+./runtime/local/build_blocks.sh          # apply the Unreal-side patches to Blocks, then rebuild
 ```
 
 > **Do not skip this.** Without it the renderer segfaults mid-flight on an empty GPU-LiDAR
 > readback (`SIM-23`), and a vehicle in a World Partition world falls through the level forever
 > (`SIM-21`). The script is idempotent — re-run it after pulling any change under
-> `patches/cosys-airsim/`, and it does nothing when everything is already applied.
+> `simulator/unreal/patches/cosys-airsim/`, and it does nothing when everything is already applied.
 
 ### 0.3 Check it worked before flying anything
 
@@ -99,7 +99,7 @@ there is a Vulkan ICD path fix that is load-bearing.
 ## 1. Start the simulator
 
 ```bash
-./scripts/sim_up.sh
+./runtime/local/sim_up.sh
 ```
 
 That brings up four containers (renderer, PX4 SITL, ROS 2, QGC), waits for the
@@ -123,7 +123,7 @@ prints `stack up and origin verified -- safe to fly` when it is ready — typica
 | `--allow-below-origin` | permit a positive `Z` (i.e. genuinely below the origin) |
 > **Converting a world is a separate step.** Anything that ships `Source/` must be compiled
 > against UE5.8, and World Partition levels need a vendor patch or the vehicle falls through the
-> map forever. Run `./scripts/convert_world.sh <your.uproject> --map /Game/Maps/X` first —
+> map forever. Run `./runtime/local/convert_world.sh <your.uproject> --map /Game/Maps/X` first —
 > [`docs/worlds.md`](worlds.md) explains what it does and how to verify it worked.
 
 Each has an environment equivalent: `WORLD`, `SETTINGS_FILE`, `SPAWN`, `SPAWN_VEHICLE`,
@@ -131,7 +131,7 @@ Each has an environment equivalent: `WORLD`, `SETTINGS_FILE`, `SPAWN`, `SPAWN_VE
 
 ```bash
 # your own world, drone placed deliberately, 10 m above the origin facing north-west
-./scripts/sim_up.sh \
+./runtime/local/sim_up.sh \
     --world /path/to/YourProject.uproject \
     --spawn 50,-30,-10,315
 ```
@@ -148,7 +148,7 @@ Each has an environment equivalent: `WORLD`, `SETTINGS_FILE`, `SPAWN`, `SPAWN_VE
 
 By default the stack **publishes nothing** and is reachable only from the machine it runs on. That
 is `NET_MODE=shared`: the renderer donates a private network and IPC namespace and every other
-container joins it. If your code runs here too, use [`scripts/attach.sh`](../scripts/attach.sh) and
+container joins it. If your code runs here too, use [`runtime/local/attach.sh`](../runtime/local/attach.sh) and
 stop reading.
 
 If your autonomy computer is a *different* machine — a Jetson on the bench, a box across the
@@ -164,14 +164,14 @@ VPN or a routed subnet almost never forwards it.
 
 ```bash
 # LAN
-NET_MODE=host ./scripts/sim_up.sh
+NET_MODE=host ./runtime/local/sim_up.sh
 
 # VPN: start a discovery server anywhere BOTH machines can reach, BEFORE the stack.
 # `fastdds` ships in drone-sim/ros2, so the host needs no ROS 2 install:
 docker run -d --name sim-ds --network host --entrypoint bash drone-sim/ros2:v1.16.0 \
     -lc 'fastdds discovery -i 0 -l 0.0.0.0 -p 11811'
 
-NET_MODE=host DISCOVERY_SERVER=127.0.0.1:11811 ./scripts/sim_up.sh
+NET_MODE=host DISCOVERY_SERVER=127.0.0.1:11811 ./runtime/local/sim_up.sh
 ```
 
 The server must be up **before** the stack. It is not managed by `sim_up.sh` — teardown leaves
@@ -186,7 +186,7 @@ On the **subscriber**, point at the same server and declare UDP as the only tran
 ```bash
 export ROS_DISCOVERY_SERVER=<server-ip>:11811
 export ROS_SUPER_CLIENT=true
-export FASTRTPS_DEFAULT_PROFILES_FILE=/path/to/configs/dds/udp-only.xml
+export FASTRTPS_DEFAULT_PROFILES_FILE=/path/to/config/dds/udp-only.xml
 ```
 
 Measured from a **second host** on the overlay — no shared namespaces, no multicast on the path.
@@ -286,16 +286,16 @@ frame rate**.
 ## 2. Configure which sensors are active, and how they are tuned
 
 Copy the shipped settings file, edit it, and pass it with `--settings`. The committed
-`sim/ue5/settings.json` is **never modified** by a run — your file is copied to a run-time
+`simulator/unreal/settings.json` is **never modified** by a run — your file is copied to a run-time
 artifact, so your configuration and the reviewed default cannot drift into each other.
 
 ```bash
-cp sim/ue5/settings.json my-settings.json
+cp simulator/unreal/settings.json my-settings.json
 $EDITOR my-settings.json
-./scripts/sim_up.sh --settings my-settings.json
+./runtime/local/sim_up.sh --settings my-settings.json
 ```
 
-A worked example ships at **`sim/ue5/examples/minimal-no-lidar.json`** — GPU-LiDAR disabled and
+A worked example ships at **`simulator/unreal/examples/minimal-no-lidar.json`** — GPU-LiDAR disabled and
 the cameras dropped to 320×240. Verified: the `gpulidar` topic disappears from the graph and
 `image.width` reads `320`.
 
@@ -363,7 +363,7 @@ docker exec -d sim-ros2 bash -lc '
 
 > **The wrapper must be rebuilt after every `sim_up.sh`** — that script does
 > `docker rm -f sim-ros2 …` on every bring-up, and the wrapper is built *inside* that
-> container (`/airsim_root`), not baked into the image. Run `./scripts/build_airsim_wrapper.sh`
+> container (`/airsim_root`), not baked into the image. Run `./runtime/local/build_airsim_wrapper.sh`
 > (~2 min) if `ros2 launch` reports `package 'airsim_ros_pkgs' not found`. The order is always
 > `sim_up.sh` → `build_airsim_wrapper.sh` → `ros2 launch`.
 
@@ -437,8 +437,8 @@ telemetry, receives a camera image and flies the aircraft**, it is
 copy it and change the waypoint.
 
 ```bash
-./scripts/sim_up.sh
-./scripts/build_airsim_wrapper.sh            # only if you want the camera — see below
+./runtime/local/sim_up.sh
+./runtime/local/build_airsim_wrapper.sh            # only if you want the camera — see below
 docker cp examples/hello_drone.py sim-ros2:/tmp/
 docker exec -it sim-ros2 bash -lc \
   'source /opt/ros/jazzy/setup.bash; source /ros2_ws/install/setup.bash; \
@@ -479,7 +479,7 @@ landed    : armed=False
 ## 5. Commanding the drone — ROS 2 only
 
 Three command kinds, all confirmed by measurement
-(`scripts/verify_nav_interface.py`, 2026-08-03).
+(`runtime/local/verify_nav_interface.py`, 2026-08-03).
 
 ### The mode split you must respect
 
@@ -559,8 +559,8 @@ through a **login** shell, because `docker exec` bypasses the entrypoint and a n
 shell has no ROS environment at all (`import rclpy` fails before anything is checked).
 
 ```bash
-docker cp scripts/verify_sensors.py       sim-ros2:/tmp/verify.py
-docker cp scripts/verify_nav_interface.py sim-ros2:/tmp/verify_nav.py
+docker cp runtime/local/verify_sensors.py       sim-ros2:/tmp/verify.py
+docker cp runtime/local/verify_nav_interface.py sim-ros2:/tmp/verify_nav.py
 
 # sensors — checks VALUES, not topic presence
 docker exec sim-ros2 bash -lc 'python3 /tmp/verify.py'

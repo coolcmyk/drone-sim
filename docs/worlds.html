@@ -184,8 +184,8 @@ footer{margin-top:70px;border-top:3px solid var(--ink);padding-top:16px;font-fam
 </header>
 
 <div class="panel">
-<pre>./scripts/convert_world.sh /path/to/Your.uproject --map /Game/Maps/YourMap
-./scripts/sim_up.sh       --world /path/to/Your.uproject --spawn 0,0,-50</pre>
+<pre>./runtime/local/convert_world.sh /path/to/Your.uproject --map /Game/Maps/YourMap
+./runtime/local/sim_up.sh       --world /path/to/Your.uproject --spawn 0,0,-50</pre>
 <p>The first converts and builds. The second flies it. Everything below is what those two lines do,
 and what to do when they do not work.</p>
 </div>
@@ -305,7 +305,7 @@ accepted for a project whose map is <code>/Game/CityPark/Maps/Showcase</code>.</
 <h3>2 &middot; Patch &mdash; the vendored tree stays pristine</h3>
 
 <p><code>vendor/Cosys-AirSim</code> is byte-identical to upstream. Deviations live in
-<code>patches/cosys-airsim/</code> and are applied to the <em>injected copy</em>. If a patch neither
+<code>simulator/unreal/patches/cosys-airsim/</code> and are applied to the <em>injected copy</em>. If a patch neither
 applies nor reverse-applies, the conversion <strong>stops</strong> rather than continuing quietly
 &mdash; skipping 0005 produces a world the drone falls through, which is precisely what it prevents.</p>
 

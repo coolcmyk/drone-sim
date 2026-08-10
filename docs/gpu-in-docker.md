@@ -70,7 +70,7 @@ Discovered Devices:
   cdi: nvidia.com/gpu=all
 ```
 
-The renderer requests exactly one device, in `scripts/sim_up.sh`:
+The renderer requests exactly one device, in `runtime/local/sim_up.sh`:
 
 ```bash
 --gpus '"device=nvidia.com/gpu=0"'
@@ -128,7 +128,7 @@ The second comes from the **Fedora-family host**, where NVIDIA libraries live in
 The container is **Ubuntu**, where they live under multiarch at `/lib/x86_64-linux-gnu/`. The
 absolute path in the injected manifest therefore does not resolve.
 
-`docker/unreal.Dockerfile` closes this with one line:
+`containers/legacy/unreal.Dockerfile` closes this with one line:
 
 ```dockerfile
 RUN mkdir -p /usr/lib64 \

@@ -265,13 +265,13 @@ byte-identical</strong> between the Gazebo stack and Unreal. The perception grap
 </figure>
 
 <div class="callout ok"><span class="lbl">Your own world loads, and the vehicle can be placed in it</span>
-<p><code>scripts/inject_airsim.py</code> takes a user&rsquo;s <code>.uproject</code> and injects
+<p><code>runtime/local/inject_airsim.py</code> takes a user&rsquo;s <code>.uproject</code> and injects
 AirSim with <strong>no compile, no editor, no GUI and no display</strong> &mdash; four text edits and
 a folder copy. Proved against a project that was never ours: <strong>City Park declares
 <code>EngineAssociation: "4.24"</code></strong>, a UE4 project from 2019, and it loaded headless in
 UE5.8 with no conversion dialog and no loader errors &mdash; <strong>856 scene objects</strong>, real
 trees, foliage and a stone stairway in the frames.</p>
-<p><code>./scripts/sim_up.sh --spawn X,Y,Z[,YAW]</code> then puts the vehicle where the operator
+<p><code>./runtime/local/sim_up.sh --spawn X,Y,Z[,YAW]</code> then puts the vehicle where the operator
 wants it, and <strong>the pose holds without re-assertion &mdash; 0.000 m drift over 6 s
 unheld</strong>, which retired a workaround that had confounded four separate investigations.</p>
 <p><strong>One honest qualification.</strong> A UE4-era project <em>loads</em> correctly; it does not
@@ -318,7 +318,7 @@ node/topic graph &mdash; the same artifact layout the Gazebo gate wrote.</p></di
 <ul class="tight">
 <li><strong>A stale PX4 EKF origin</strong> made the vehicle report 35.167 m of altitude while parked
 on the ground, which presents <em>exactly</em> as a control bug and cost a day.
-<code>scripts/sim_up.sh</code> now verifies and repairs the origin on every bring-up &mdash; on its
+<code>runtime/local/sim_up.sh</code> now verifies and repairs the origin on every bring-up &mdash; on its
 first honest cold start it caught a fresh one at <strong>9.069 m</strong>, restarted PX4, re-verified
 at 0.000 m apart, and the stack then flew 4/4. The gate <strong>VOIDs</strong> such runs rather than
 scoring them as failures.</li>
@@ -469,7 +469,7 @@ equivalent is a noisy EKF output. <strong>Tuning against noiseless odometry is a
 will not surface until the real flight.</strong></p></div>
 
 <div class="callout"><span class="lbl">The seeded scenario harness &mdash; and what a seed does not do yet</span>
-<p><code>scripts/run_scenario.py</code> now drives <code>scripts/sim_up.sh</code> directly. <strong>A
+<p><code>runtime/local/run_scenario.py</code> now drives <code>runtime/local/sim_up.sh</code> directly. <strong>A
 seed currently controls the SPAWN POSE and nothing else.</strong> The retired Gazebo harness seeded
 wind and vehicle mass through a generated world overlay, and <strong>there is no equivalent
 here yet</strong> &mdash; it needs Cosys-AirSim&rsquo;s wind API, which is part of
@@ -480,7 +480,7 @@ honest.</p></div>
 </div>
 
 <div class="callout"><span class="lbl">SIM-07 &mdash; the flight gate, and wind/environment control</span>
-<p><code>scripts/run_gate.py</code> is now <strong>the simulator&rsquo;s</strong> gate, keeping the
+<p><code>runtime/local/run_gate.py</code> is now <strong>the simulator&rsquo;s</strong> gate, keeping the
 scoring semantics it was given: a <strong>VOID</strong> run is excluded from the success rate
 (it never measured the flight code) and <em>separately</em> blocks the criterion &mdash; excluding
 without blocking would let a gate where 9 of 10 runs were void report 100%. Scoring lives in a pure
@@ -616,7 +616,7 @@ Cosys-Lab.</p></div>
 <thead><tr><th>Capability</th><th>ID</th><th>What it gives you</th><th>Evidence</th><th>State</th></tr></thead>
 <tbody>
 <tr><th>Bring your own Unreal world</th><td class="mono">SIM-11</td><td>any <code>.uproject</code> loads &mdash; no compile, no editor, no GUI</td><td>City Park, <code>EngineAssociation 4.24</code>, 856 objects, headless</td><td><span class="pill p-ok">done</span></td></tr>
-<tr><th>Engine image + plugin build</th><td class="mono">SIM-01 · SIM-02</td><td>the stack everything else runs on</td><td>pulled digest byte-identical to the registry query; plugin built with the engine&rsquo;s own clang 20.1.8 &mdash; <code>LOCKED</code> in <code>versions.lock</code></td><td><span class="pill p-ok">done</span></td></tr>
+<tr><th>Engine image + plugin build</th><td class="mono">SIM-01 · SIM-02</td><td>the stack everything else runs on</td><td>pulled digest byte-identical to the registry query; plugin built with the engine&rsquo;s own clang 20.1.8 &mdash; <code>LOCKED</code> in <code>third_party/versions.lock</code></td><td><span class="pill p-ok">done</span></td></tr>
 <tr><th>Flight over ROS 2</th><td class="mono">SIM-03 · SIM-09</td><td>an unmodified controller flies; 51 <code>/fmu/</code> topics identical</td><td>4/4 waypoints, max 0.79 m, reproduced 3&times;</td><td><span class="pill p-ok">done</span></td></tr>
 <tr><th>Deterministic bring-up</th><td class="mono">SIM-10</td><td>one command; the EKF origin verified before anything flies</td><td>83 s cold start; caught a real 9.069 m stale origin</td><td><span class="pill p-ok">done</span> &mdash; N-in-a-row outstanding</td></tr>
 <tr><th>Sensors in the graph</th><td class="mono">SIM-04</td><td>RGB, depth, GPU-LiDAR, IMU, GPS, magnetometer, odometry, <code>/clock</code></td><td><code>verify_sensors.py</code> asserts values, not topic presence</td><td><span class="pill p-ok">done</span></td></tr>
@@ -666,11 +666,11 @@ one from NWU.</li>
 <div class="tw"><table>
 <thead><tr><th>Change</th><th>Measured effect</th></tr></thead>
 <tbody>
-<tr><th><code>docker/px4.Dockerfile</code> no longer installs Gazebo</th><td><code>Tools/setup/ubuntu.sh --no-sim-tools</code> plus an explicit reinstall of the non-Gazebo build deps (<code>bc</code>, <code>libeigen3-dev</code>, <code>protobuf-compiler</code>, <code>pkg-config</code>, <code>libxml2-utils</code>). <strong>11.6 GB &rarr; 11.0 GB</strong>, and the build asserts Gazebo is absent. <strong>NuttX stays on purpose</strong> &mdash; real Pixhawk 6C firmware is flashed from that tree.</td></tr>
-<tr><th><code>docker/ros2.Dockerfile</code> drops <code>ros-gz-bridge</code></th><td>It had no consumer left: <code>/clock</code> now comes from the simulator, remapped in <code>perception.launch.py</code>. The image instead bakes in the wrapper&rsquo;s dependencies and <code>docker/ros-profile.sh</code>.</td></tr>
-<tr><th><code>docker/video.Dockerfile</code> replaces the old demo image</th><td>A thin ffmpeg layer on the PX4 base. No Xvfb, xterm, xdotool or openbox &mdash; those served GUI panes that no longer exist.</td></tr>
-<tr><th>Compose is gone</th><td>The simulator has never used it; <code>scripts/sim_up.sh</code> brings the stack up with raw <code>docker run</code>. The deleted <code>docker compose config</code> CI step is replaced by <code>scripts/check_image_refs.py</code>, which asserts every <code>drone-sim/&hellip;</code> reference names an image declared in <code>versions.lock</code>.</td></tr>
-<tr><th><code>scripts/run_scenario.py</code> drives <code>sim_up.sh</code></th><td>A seed controls the <strong>spawn pose only</strong> &mdash; see §03. The wind-and-mass overlay the Gazebo harness used has no equivalent here yet.</td></tr>
+<tr><th><code>containers/legacy/px4.Dockerfile</code> no longer installs Gazebo</th><td><code>Tools/setup/ubuntu.sh --no-sim-tools</code> plus an explicit reinstall of the non-Gazebo build deps (<code>bc</code>, <code>libeigen3-dev</code>, <code>protobuf-compiler</code>, <code>pkg-config</code>, <code>libxml2-utils</code>). <strong>11.6 GB &rarr; 11.0 GB</strong>, and the build asserts Gazebo is absent. <strong>NuttX stays on purpose</strong> &mdash; real Pixhawk 6C firmware is flashed from that tree.</td></tr>
+<tr><th><code>containers/legacy/ros2.Dockerfile</code> drops <code>ros-gz-bridge</code></th><td>It had no consumer left: <code>/clock</code> now comes from the simulator, remapped in <code>perception.launch.py</code>. The image instead bakes in the wrapper&rsquo;s dependencies and <code>runtime/local/ros-profile.sh</code>.</td></tr>
+<tr><th><code>containers/legacy/video.Dockerfile</code> replaces the old demo image</th><td>A thin ffmpeg layer on the PX4 base. No Xvfb, xterm, xdotool or openbox &mdash; those served GUI panes that no longer exist.</td></tr>
+<tr><th>Compose is gone</th><td>The simulator has never used it; <code>runtime/local/sim_up.sh</code> brings the stack up with raw <code>docker run</code>. The deleted <code>docker compose config</code> CI step is replaced by <code>runtime/local/check_image_refs.py</code>, which asserts every <code>drone-sim/&hellip;</code> reference names an image declared in <code>third_party/versions.lock</code>.</td></tr>
+<tr><th><code>runtime/local/run_scenario.py</code> drives <code>sim_up.sh</code></th><td>A seed controls the <strong>spawn pose only</strong> &mdash; see §03. The wind-and-mass overlay the Gazebo harness used has no equivalent here yet.</td></tr>
 </tbody></table></div>
 
 <div class="panel"><p style="margin:0"><strong>Source of truth:</strong>

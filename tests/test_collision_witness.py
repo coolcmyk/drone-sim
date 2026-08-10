@@ -27,7 +27,7 @@ import pytest
 
 REPO = Path(__file__).resolve().parent.parent
 _spec = importlib.util.spec_from_file_location(
-    "collision_witness", REPO / "scripts" / "collision_witness.py")
+    "collision_witness", REPO / "runtime" / "local" / "collision_witness.py")
 cw = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(cw)
 

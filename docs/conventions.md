@@ -97,7 +97,7 @@ each an opportunity for a sign error, and each one diverging from what the upstr
 **Why not convert wherever convenient?** Because the failure mode is silent. A double
 conversion is the identity on some axes and a sign flip on others, and the vehicle flies
 confidently into the ground. **One conversion, in one function, with a unit test** — see
-`ros2_ws/src/control/`.
+`ros2/src/control/`.
 
 Frame ids: `map` (ENU world, the origin PX4's EKF was initialised at), `base_link` (FLU
 body). Yaw is ENU counter-clockwise-from-East for our topics; PX4 wants NED
@@ -130,7 +130,7 @@ upstream defaults make it unreachable unless the launch file fixes both:
 2. Even when enabled, it publishes to `~/clock`, which resolves to **`/airsim_node/clock`**
    on a node named `airsim_node`. **Not `/clock`.**
 
-`ros2_ws/src/bringup/launch/perception.launch.py` defaults `publish_clock` to **true** and
+`ros2/src/bringup/launch/perception.launch.py` defaults `publish_clock` to **true** and
 **remaps `/airsim_node/clock` → `/clock`**. That remap is the load-bearing line: without it
 the clock is published somewhere nothing looks, which is a worse failure than not publishing
 it at all, because the node reports healthy.
@@ -217,10 +217,10 @@ change it in sim only.
 
 ## 7. What is deliberately not frozen yet
 
-- **Mission and result message contracts** — `ros2_ws/src/interfaces/msg/MissionStatus.msg`
+- **Mission and result message contracts** — `ros2/src/interfaces/msg/MissionStatus.msg`
   and `MissionResult.msg`. They were designed after this document was frozen and are not
   covered by it.
-- **Scenario file format** — `scenarios/*.yaml`. Still moving: today a seed drives the
+- **Scenario file format** — `config/scenarios/*.yaml`. Still moving: today a seed drives the
   vehicle spawn pose and nothing else.
 - **Perception and planning topics** — they get frozen when the capability that publishes
   them is built, under these same rules.

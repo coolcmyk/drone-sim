@@ -253,7 +253,7 @@ real-flight failure. Stop this container and arming is denied. Verified in both 
   <text x="463" y="220" class="svg-ink2" font-size="10">the agent creates the DDS</text>
   <text x="463" y="235" class="svg-ink2" font-size="10">participants; PX4 never does</text>
   <text x="463" y="263" class="svg-ink2" font-size="10" font-style="italic">your autonomy attaches HERE,</text>
-  <text x="463" y="278" class="svg-ink2" font-size="10" font-style="italic">from outside &mdash; scripts/attach.sh</text>
+  <text x="463" y="278" class="svg-ink2" font-size="10" font-style="italic">from outside &mdash; runtime/local/attach.sh</text>
 
   <rect x="678" y="34" width="208" height="270" rx="4" fill="var(--panel)" stroke="var(--ground)" stroke-width="1.6"/>
   <text x="782" y="58" text-anchor="middle" class="svg-ink" font-size="13" font-weight="700">sim-qgc</text>
@@ -361,7 +361,7 @@ list and total silence. Measured, same subscriber, three ways:</p>
 <pre>no namespaces shared        51 topics   3 messages   OK
 --network only              51 topics   0 messages   BROKEN
 --network + --ipc           51 topics   3 messages   OK</pre>
-<p>Share both, or share neither. <code>scripts/attach.sh</code> shares both so the trap is
+<p>Share both, or share neither. <code>runtime/local/attach.sh</code> shares both so the trap is
 unreachable.</p></div>
 
 <h2 id="reach"><span class="secnum">05</span> Reaching it from another machine</h2>
