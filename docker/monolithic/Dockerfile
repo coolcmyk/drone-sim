@@ -45,7 +45,8 @@ RUN apt-get update \
       libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 \
       libxcb-xkb1 libpulse0 libspeechd2 \
       x11vnc novnc websockify supervisor \
- && python3 -m pip install --no-cache-dir rosdep vcstool colcon-common-extensions \
+ && python3 -m pip install --no-cache-dir \
+      rosdep vcstool colcon-common-extensions catkin_pkg rosdistro \
  && rm -rf /var/lib/apt/lists/* \
  && locale-gen C.UTF-8 \
  && rosdep init
@@ -60,7 +61,7 @@ RUN git clone https://github.com/ros2/ros2.git . \
  && rosdep update \
  && apt-get update \
  && rosdep install --from-paths src --ignore-src --rosdistro jazzy -r -y \
-      --skip-keys "urdfdom_headers rti-connext-dds-6.0.1" \
+      --skip-keys "urdfdom_headers rti-connext-dds-6.0.1 python3-catkin-pkg-modules python3-vcstool python3-rosdistro-modules" \
  && colcon build --merge-install --install-base /opt/ros/jazzy \
  && test -x /opt/ros/jazzy/bin/ros2 \
  && /opt/ros/jazzy/bin/ros2 --help >/dev/null
