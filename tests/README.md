@@ -8,8 +8,8 @@ up on a hosted runner.
 
 ```bash
 python3 -m pytest tests/ -q                     # the host-side suite (pytest + pyyaml, nothing else)
-./scripts/run_local_ci.sh                       # tier 1 — the same checks CI runs, ~30 s
-./scripts/run_local_ci.sh --gate                # + the 10-seed flight gate (needs the simulator)
+./runtime/local/run_local_ci.sh                       # tier 1 — the same checks CI runs, ~30 s
+./runtime/local/run_local_ci.sh --gate                # + the 10-seed flight gate (needs the simulator)
 ```
 
 > **The gate has never been timed against this stack.** The "~19 minutes for ten seeds"
@@ -29,7 +29,7 @@ did nothing, or silently broke while looking healthy: a `NaN` that passed the ga
 arrival test that scored a fly-through, a ramp-out that converged without ever arriving.
 
 **`test_frames.py` is not here.** The single ENU↔NED conversion point is tested inside its
-package, at `ros2_ws/src/control/test/test_frames.py`, because it imports `control.frames`:
+package, at `ros2/src/control/test/test_frames.py`, because it imports `control.frames`:
 
 ```bash
 colcon test --packages-select control --python-testing pytest
@@ -44,22 +44,22 @@ colcon test-result --verbose
 ## Tier 1 — what CI runs on every push
 
 `.github/workflows/checks.yml`, ~24 s: this suite, shell and Python parse checks,
-`scripts/check_image_refs.py`, `check_repos_manifest.py`, `check_worklog_renders.py`,
+`runtime/local/check_image_refs.py`, `check_repos_manifest.py`, `check_worklog_renders.py`,
 `check_attribution.sh`, `check_versions_conflicts.py`. `main` requires it.
 
 **`check_image_refs.py` replaced a `docker compose config` step.** That step caught a real
 class of defect — a reference to an image that does not exist — for the compose stack that
 has since been retired. The class did not go away with the file, so the check was rewritten
 against the authority that survived: every `drone-sim/...` reference must name an image
-declared under `images:` in `versions.lock`. Nothing else in tier 1 can see a renamed tag,
+declared under `images:` in `third_party/versions.lock`. Nothing else in tier 1 can see a renamed tag,
 because tier 1 never builds or runs a container.
 
 ## Tier 2 — the flight gate, run by hand
 
-`scripts/run_gate.py` needs the simulator: a 57 GB Unreal image, a GPU, and an 11 GB PX4
+`runtime/local/run_gate.py` needs the simulator: a 57 GB Unreal image, a GPU, and an 11 GB PX4
 image. No hosted runner can bring that up, and a self-hosted runner on a **public** repo
 would let any fork's pull request execute code on the workstation. So the gate is deferred
-**by decision**, and `./scripts/run_local_ci.sh --gate` on the workstation is the accepted
+**by decision**, and `./runtime/local/run_local_ci.sh --gate` on the workstation is the accepted
 substitute — one command, with a summary that can be pasted into a PR.
 
 ## What used to be here

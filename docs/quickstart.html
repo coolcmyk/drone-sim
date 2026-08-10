@@ -216,10 +216,10 @@ renderer. Everything else builds from a clone. Stated here rather than discovere
 
 <pre>gh auth token | docker login ghcr.io -u &lt;github-user&gt; --password-stdin
 
-docker build -f docker/px4.Dockerfile    -t drone-sim/px4:v1.16.0 .
-docker build -f docker/qgc.Dockerfile    -t drone-sim/qgc:v1.16.0 .
-docker build -f docker/ros2.Dockerfile   -t drone-sim/ros2:v1.16.0 .
-docker build -f docker/unreal.Dockerfile -t drone-sim/unreal:ue5.8 .</pre>
+docker build -f containers/legacy/px4.Dockerfile    -t drone-sim/px4:v1.16.0 .
+docker build -f containers/legacy/qgc.Dockerfile    -t drone-sim/qgc:v1.16.0 .
+docker build -f containers/legacy/ros2.Dockerfile   -t drone-sim/ros2:v1.16.0 .
+docker build -f containers/legacy/unreal.Dockerfile -t drone-sim/unreal:ue5.8 .</pre>
 
 <p><strong>Order does not matter</strong> &mdash; every image builds from <code>ubuntu:24.04</code>,
 or the Epic image for the renderer, and none derives from another. Run them in parallel if you
@@ -242,7 +242,7 @@ also builds the NuttX/ARM toolchain and then <strong>throws it away</strong>:
 
 <h3>Fetch the pinned upstreams and build the plugin once</h3>
 
-<pre>vcs import vendor &lt; .repos          # ~1.3 GB — Cosys-AirSim at a pinned SHA, not a branch
+<pre>vcs import vendor &lt; third_party/sources.repos          # ~1.3 GB — Cosys-AirSim at a pinned SHA, not a branch
 
 docker run --rm -v "$PWD/vendor/Cosys-AirSim:/src" drone-sim/unreal:ue5.8 \
   bash -lc './build.sh --ue-root /home/ue4/UnrealEngine'</pre>
@@ -262,7 +262,7 @@ ls vendor/Cosys-AirSim/Unreal/Environments/Blocks/Blocks.uproject</pre>
 Fedora-family host there is a Vulkan ICD path fix that is load-bearing.</p>
 
 <h2 id="start"><span class="secnum">01</span> Start the simulator</h2>
-<pre>./scripts/sim_up.sh</pre>
+<pre>./runtime/local/sim_up.sh</pre>
 <p>Four containers come up &mdash; renderer, PX4 SITL, ROS 2, QGC &mdash; the vehicle is
 allowed to settle, and the EKF origin is <strong>verified</strong> before the stack is declared
 usable. The uXRCE-DDS agent is <em>inside</em> <code>sim-ros2</code>, not a container of its own: on the aircraft it is a process on the companion computer beside every other ROS 2 node, so giving it a machine modelled a boundary that does not exist. It prints <code>stack up and origin verified -- safe to fly</code>, typically in ~80&nbsp;s.</p>
@@ -295,7 +295,7 @@ code at all.</p></div>
 <code>SPAWN_VEHICLE</code>, <code>SPAWN_ALLOW_BELOW</code>.</p>
 
 <pre><span class="c"># your own world, drone placed deliberately, 10 m up facing north-west</span>
-./scripts/sim_up.sh \
+./runtime/local/sim_up.sh \
     --world /path/to/YourProject.uproject \
     --spawn 50,-30,<b>-10</b>,315</pre>
 
@@ -311,7 +311,7 @@ release high and read the resting position back &mdash; that <em>is</em> a groun
 <h2 id="reach"><span class="secnum">02</span> Running your autonomy on another machine</h2>
 
 <p>By default the stack <strong>publishes nothing</strong> and is reachable only from the machine
-it runs on. If your code runs here too, use <code>scripts/attach.sh</code> and stop reading. If
+it runs on. If your code runs here too, use <code>runtime/local/attach.sh</code> and stop reading. If
 your autonomy computer is a different machine, which switch you need is decided by
 <strong>one question: does the path carry UDP multicast?</strong></p>
 
@@ -325,12 +325,12 @@ your autonomy computer is a different machine, which switch you need is decided 
 </table></div>
 
 <pre># LAN
-NET_MODE=host ./scripts/sim_up.sh
+NET_MODE=host ./runtime/local/sim_up.sh
 
 # VPN: start a discovery server both machines can reach, BEFORE the stack
 docker run -d --name sim-ds --network host --entrypoint bash drone-sim/ros2:v1.16.0 \
     -lc 'fastdds discovery -i 0 -l 0.0.0.0 -p 11811'
-NET_MODE=host DISCOVERY_SERVER=127.0.0.1:11811 ./scripts/sim_up.sh</pre>
+NET_MODE=host DISCOVERY_SERVER=127.0.0.1:11811 ./runtime/local/sim_up.sh</pre>
 
 <p>Verified from a <strong>second host</strong> on the overlay &mdash; no shared namespaces, no
 multicast &mdash; with each run paired against the same probe <em>without</em> the server, which is
@@ -355,8 +355,8 @@ so it removes the multicast requirement, not the routing one.</p></div>
 
 <p>A third-party Unreal project usually needs converting first, and the failures are silent:</p>
 
-<pre>./scripts/convert_world.sh /path/to/Your.uproject --map /Game/Maps/YourMap
-./scripts/sim_up.sh        --world /path/to/Your.uproject --spawn 0,0,-50</pre>
+<pre>./runtime/local/convert_world.sh /path/to/Your.uproject --map /Game/Maps/YourMap
+./runtime/local/sim_up.sh        --world /path/to/Your.uproject --spawn 0,0,-50</pre>
 
 <div class="callout stop"><span class="lbl">The two that cost the most time</span>
 <p><strong>The game mode.</strong> If <code>GlobalDefaultGameMode</code> is not
@@ -364,19 +364,19 @@ so it removes the multicast requirement, not the routing one.</p></div>
 forever with <strong>no error line</strong>. Raising <code>SIM_LINK_TIMEOUT</code> never helps.</p>
 <p><strong>World Partition.</strong> It activates streaming cells around a registered streaming
 source, and AirSim's pawn was not one &mdash; so no cell loaded, there was no collision geometry
-anywhere, and the vehicle fell forever. <code>patches/cosys-airsim/0005</code> fixes it, though a
+anywhere, and the vehicle fell forever. <code>simulator/unreal/patches/cosys-airsim/0005</code> fixes it, though a
 startup race remains: roughly <strong>2 runs in 3</strong> succeed, so retry on failure.</p>
 <p>Full detail: <a href="worlds.html">worlds.html</a>.</p></div>
 
 <h2 id="configure"><span class="secnum">04</span> Choose the world, sensors and tuning</h2>
 <p>Copy the shipped settings file, edit it, pass it with <code>--settings</code>. The committed
-<code>sim/ue5/settings.json</code> is <strong>never modified</strong> by a run &mdash; your file is
+<code>simulator/unreal/settings.json</code> is <strong>never modified</strong> by a run &mdash; your file is
 copied to a run-time artifact, so your configuration and the reviewed default cannot drift into
 each other.</p>
-<pre>cp sim/ue5/settings.json my-settings.json
+<pre>cp simulator/unreal/settings.json my-settings.json
 $EDITOR my-settings.json
-./scripts/sim_up.sh --settings my-settings.json</pre>
-<p>A worked example ships at <code>sim/ue5/examples/minimal-no-lidar.json</code> &mdash; GPU-LiDAR
+./runtime/local/sim_up.sh --settings my-settings.json</pre>
+<p>A worked example ships at <code>simulator/unreal/examples/minimal-no-lidar.json</code> &mdash; GPU-LiDAR
 disabled, cameras at 320&times;240. Verified: the <code>gpulidar</code> topic disappears from the
 graph and <code>image.width</code> reads <code>320</code>.</p>
 
@@ -432,7 +432,7 @@ throughput.</p></div>
 <p><code>sim_up.sh</code> does <code>docker rm -f sim-ros2 …</code> on every bring-up, and the
 wrapper is built <em>inside</em> that container (<code>/airsim_root</code>), not baked into the
 image. If <code>ros2 launch</code> reports <code>package 'airsim_ros_pkgs' not found</code>, run
-<code>./scripts/build_airsim_wrapper.sh</code> (~2 min). The order is always
+<code>./runtime/local/build_airsim_wrapper.sh</code> (~2 min). The order is always
 <code>sim_up.sh</code> &rarr; <code>build_airsim_wrapper.sh</code> &rarr; <code>ros2 launch</code>.</p></div>
 
 <div class="callout stop"><span class="lbl">Launch it &mdash; do not ros2 run it</span>
@@ -496,7 +496,7 @@ a ceiling and check timestamps before feeding a preintegrating VIO. <code>ros2 t
 report a healthy-looking rate and tell you none of this.</p></div>
 
 <h2 id="commands"><span class="secnum">06</span> Commanding the drone</h2>
-<p>Three command kinds, all confirmed by measurement (<code>scripts/verify_nav_interface.py</code>,
+<p>Three command kinds, all confirmed by measurement (<code>runtime/local/verify_nav_interface.py</code>,
 2026-08-03) &mdash; each proven by the <strong>vehicle moving</strong>, never by a publisher existing.</p>
 
 <figure>
@@ -589,8 +589,8 @@ VEHICLE_CMD_NAV_LAND</pre>
 through a <strong>login</strong> shell, because <code>docker exec</code> bypasses the entrypoint and a
 non-login shell has no ROS environment at all (<code>import rclpy</code> fails before anything is
 checked).</p>
-<pre>docker cp scripts/verify_sensors.py       sim-ros2:/tmp/verify.py
-docker cp scripts/verify_nav_interface.py sim-ros2:/tmp/verify_nav.py
+<pre>docker cp runtime/local/verify_sensors.py       sim-ros2:/tmp/verify.py
+docker cp runtime/local/verify_nav_interface.py sim-ros2:/tmp/verify_nav.py
 
 <span class="c"># sensors — checks VALUES, not topic presence</span>
 docker exec sim-ros2 bash -lc 'python3 /tmp/verify.py'

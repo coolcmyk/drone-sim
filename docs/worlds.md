@@ -4,15 +4,15 @@ How to take an Unreal project that was never built for this simulator and fly a 
 
 Everything here was learned converting real projects — Epic's **CitySample** most recently — and
 every failure described is one that actually happened, with the measurement that identified it.
-The automated path is [`scripts/convert_world.sh`](../scripts/convert_world.sh); the manual steps
+The automated path is [`runtime/local/convert_world.sh`](../runtime/local/convert_world.sh); the manual steps
 are documented so you can debug it when it does not work.
 
 > There is an illustrated version of this page at [`worlds.html`](worlds.html) — same content, with
 > diagrams of the conversion pipeline, the World Partition failure, and the resting-`z` verdict.
 
 ```bash
-./scripts/convert_world.sh /path/to/Your.uproject --map /Game/Maps/YourMap
-./scripts/sim_up.sh --world /path/to/Your.uproject --spawn 0,0,-50
+./runtime/local/convert_world.sh /path/to/Your.uproject --map /Game/Maps/YourMap
+./runtime/local/sim_up.sh --world /path/to/Your.uproject --spawn 0,0,-50
 ```
 
 ---
@@ -58,7 +58,7 @@ ground the vehicle can land on.
 ### 2. Apply the Unreal-side vendor patches
 
 `vendor/Cosys-AirSim` stays byte-identical to upstream; deviations live in
-[`patches/cosys-airsim/`](../../patches/cosys-airsim/) and are applied to the *injected copy*.
+[`simulator/unreal/patches/cosys-airsim/`](../../simulator/unreal/patches/cosys-airsim/) and are applied to the *injected copy*.
 The one that matters for modern worlds is `0005-worldpartition-streaming-source.patch` — see
 **World Partition** below.
 
@@ -111,7 +111,7 @@ Measured on CitySample, resting `z` in **NED, where +z is DOWN**:
 Releasing higher only buys more fall, so **this is not a spawn-height problem** and not the
 underground-spawn trap. The cvar route does not work either.
 
-`patches/cosys-airsim/0005` fixes it by giving `AFlyingPawn` a
+`simulator/unreal/patches/cosys-airsim/0005` fixes it by giving `AFlyingPawn` a
 `UWorldPartitionStreamingSourceComponent`. After it, same world and spawn: resting
 `z = -8.4e-05 m`, EKF origin sane, and a full 4/4 waypoint mission flies.
 
@@ -147,7 +147,7 @@ docker exec sim-ros2 bash -lc 'source /opt/ros/jazzy/setup.bash; \
 Then fly it for real:
 
 ```bash
-docker cp scripts/verify_nav_interface.py sim-ros2:/tmp/
+docker cp runtime/local/verify_nav_interface.py sim-ros2:/tmp/
 docker exec sim-ros2 bash -lc 'source /opt/ros/jazzy/setup.bash; \
   source /ros2_ws/install/setup.bash; python3 /tmp/verify_nav_interface.py'
 ```
@@ -201,7 +201,7 @@ In your project (all reversible):
 
 ## Known gap
 
-`inject_airsim.py` copies the **built** plugin from Blocks, so `patches/cosys-airsim/0005` does
+`inject_airsim.py` copies the **built** plugin from Blocks, so `simulator/unreal/patches/cosys-airsim/0005` does
 not reach a converted world through the plugin itself — `convert_world.sh` applies it to the
 project's own copy afterwards and rebuilds, which is why an A1 project with patches still needs a
 build. Wiring the Unreal-side patches into the Blocks plugin build is unsolved (`SIM-21`);

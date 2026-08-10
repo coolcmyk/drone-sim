@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
-_spec = importlib.util.spec_from_file_location("inject_airsim", REPO / "scripts" / "inject_airsim.py")
+_spec = importlib.util.spec_from_file_location("inject_airsim", REPO / "runtime" / "local" / "inject_airsim.py")
 inj = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(inj)
 

@@ -1,10 +1,10 @@
 # `vendor/` — pinned third-party checkouts
 
-Third-party trees land here via **vcstool**, driven by [`../.repos`](../.repos). Prefer
-`.repos` over git submodules (`.ai/AGENTS.md` → "Adapting upstream code & version pinning").
+Third-party trees land here via **vcstool**, driven by [`../third_party/sources.repos`](../third_party/sources.repos). Prefer
+`third_party/sources.repos` over git submodules (`AGENTS.md` → "Adapting upstream code & version pinning").
 
 ```bash
-vcs import vendor < .repos
+vcs import vendor < third_party/sources.repos
 ```
 
 | Tree | What it is |
@@ -16,7 +16,7 @@ vcs import vendor < .repos
 | `tools/` | a QGroundControl AppImage, left from the original native install (2026-07-28). **Nothing in the stack uses it** — QGC is baked into `drone-sim/qgc:v1.16.0` and checksum-verified at build |
 
 Isaac Sim, Pegasus and the second PX4 v1.14.3 tree are retired and stay commented out in
-`.repos`; the EGO-Planner tree is listed but not started. Reopening either is an uncomment,
+`third_party/sources.repos`; the EGO-Planner tree is listed but not started. Reopening either is an uncomment,
 not an archaeology exercise.
 
 **Least-destructive vendor edits.** Keep every vendored tree **byte-identical to upstream**
@@ -28,8 +28,8 @@ wherever possible and push integration into the *build*, *launch* or *config* la
 
 `Cosys-AirSim` is the live proof that this is workable rather than aspirational: it carries
 three real upstream defect fixes, and `git status --porcelain vendor/` still reports zero
-modifications — the patches live in `patches/cosys-airsim/` and are applied by
-`scripts/build_airsim_wrapper.sh` to a **container-local copy** at `/airsim_root`. Two more
+modifications — the patches live in `simulator/unreal/patches/cosys-airsim/` and are applied by
+`runtime/local/build_airsim_wrapper.sh` to a **container-local copy** at `/airsim_root`. Two more
 deviations that could have been patches (five uninitialized sensor-timer periods, and a
 `/clock` topic published where nobody looks) are handled in the launch layer instead.
 

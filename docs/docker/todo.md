@@ -17,7 +17,7 @@ changes — which it has.
 ## Restated 2026-08-04 — one stack, no compose
 
 The repo builds and runs **one** stack: Unreal Engine 5.8 + Cosys-AirSim + PX4 v1.16 SITL +
-ROS 2 Jazzy, brought up by [`../../scripts/sim_up.sh`](../../scripts/sim_up.sh). The Gazebo
+ROS 2 Jazzy, brought up by [`../../runtime/local/sim_up.sh`](../../runtime/local/sim_up.sh). The Gazebo
 baseline and Isaac Sim are retired; their backlogs are in [`../history/`](../history/).
 
 **There is no compose file.** `docker/compose.yaml` described the Gazebo stack and was
@@ -31,10 +31,10 @@ it, and none is silently dropped:
 
 | ID | What it was | Disposition |
 |---|---|---|
-| `D-01` | Capture the working install as a Dockerfile | ✅ **done**, and still live as `docker/px4.Dockerfile` — updated, Gazebo removed |
+| `D-01` | Capture the working install as a Dockerfile | ✅ **done**, and still live as `containers/legacy/px4.Dockerfile` — updated, Gazebo removed |
 | `D-02` | `docker compose` for the Gazebo graph | ✅ done 2026-07-29 → **superseded by deletion**; three of its findings carried over to `sim_up.sh` |
 | `D-02b` | Live GUI access (x11vnc + noVNC) | **narrowed** — the Gazebo GUI it was half about no longer exists; QGC remains |
-| `D-02c` | Recording as a compose service | ✅ done 2026-07-30 → **superseded by deletion**; replaced by `scripts/record_flight.py` |
+| `D-02c` | Recording as a compose service | ✅ done 2026-07-30 → **superseded by deletion**; replaced by `runtime/local/record_flight.py` |
 | `D-03` | GPU services and device pinning | **partly done** — the renderer is pinned at the container boundary; the second consumer is not built |
 | `D-04` | The Unreal engine container | **partly done** — it is built and it flies *here*; the reproducibility deliverables are outstanding. **The live constraint on the whole goal** |
 | `D-05` | CI builds the images | `todo` — restated against the current Dockerfiles |
@@ -48,8 +48,8 @@ On a machine with **native Docker and an NVIDIA driver**, a clone of this repo p
 documented credential step** reaches a flying stack:
 
 1. the six images build from the repo (`docker/*.Dockerfile`);
-2. `./scripts/sim_up.sh` prints `stack up and origin verified -- safe to fly`;
-3. `./scripts/run_gate.py scenarios/square-10m.yaml --outdir out` passes.
+2. `./runtime/local/sim_up.sh` prints `stack up and origin verified -- safe to fly`;
+3. `./runtime/local/run_gate.py config/scenarios/square-10m.yaml --outdir out` passes.
 
 **Not met.** Two named gaps: the credential gate (`D-04`), and the fact that nothing here
 has ever been built or run on a machine other than this one — which is a distrobox, not the
@@ -79,7 +79,7 @@ target substrate (`D-08`).
 The original Phase 0 install was done **natively inside the `drone-sim` container**, on the
 reasoning that you prove components first and containerize them later. The reproducibility
 goal superseded that reasoning, and the asset was **perishable**: the exact, working,
-smoke-tested recipe lived only in `versions.lock` and the worklogs. Apt archives move,
+smoke-tested recipe lived only in `third_party/versions.lock` and the worklogs. Apt archives move,
 `latest` tags drift, and the deviations discovered along the way are exactly the kind of
 detail that is expensive to rediscover.
 
@@ -102,7 +102,7 @@ detail that is expensive to rediscover.
 ## D-01 — Capture the working install as a Dockerfile
 
 **Status:** ✅ **`done` (2026-07-29)** — the image is **native-equivalent** on a normal
-container runtime. Now `docker/px4.Dockerfile`, and still the base of `drone-sim/ros2`,
+container runtime. Now `containers/legacy/px4.Dockerfile`, and still the base of `drone-sim/ros2`,
 `drone-sim/qgc` and `drone-sim/video`.
 
 ### Updated 2026-08-04 — the image no longer contains Gazebo
@@ -142,7 +142,7 @@ the stack.
 **There is no equivalent number for the current simulator, and there cannot be one of this
 kind.** Lockstep is dead code in Cosys-AirSim, so its timing is free-running and a
 real-time factor from it is not a determinism claim (`../conventions.md` §4). The simulator
-is gated on **success rate over seeded runs** instead (`scripts/run_gate.py`).
+is gated on **success rate over seeded runs** instead (`runtime/local/run_gate.py`).
 
 Full reasoning and every dead end:
 [`../worklog/2026-07-29-d01-container-parity.md`](../worklog/2026-07-29-d01-container-parity.md).
@@ -201,7 +201,7 @@ the end of a script.
 
 **Status:** ✅ done 2026-07-29 → **SUPERSEDED BY DELETION (2026-08-04).** `docker/compose.yaml`
 described the Gazebo stack and went with it. The simulator's bring-up is
-`scripts/sim_up.sh`, raw `docker run`, and it never went through compose.
+`runtime/local/sim_up.sh`, raw `docker run`, and it never went through compose.
 
 **Marked superseded rather than deleted because the findings outlived the file.** Three of
 them are load-bearing in `sim_up.sh` today, and two are security decisions that must not be
@@ -213,14 +213,14 @@ re-litigated by accident.
 |---|---|
 | **Shared netns is not enough for DDS** — `ros2 topic list` shows topics, `ros2 topic echo` returns **nothing**, because Fast-DDS discovers over UDP but delivers over **shared memory**, and each container has its own `/dev/shm` | `--ipc container:sim-unreal` on every joiner |
 | **The IPC donor must opt in** — otherwise `failed to join IPC namespace: non-shareable IPC` | `--ipc shareable` on `sim-unreal` |
-| **`exec` bypasses the ENTRYPOINT** — exec shells have no ROS env, so `ros2 topic list` reports **0 topics on a healthy stack**, a false negative that looks exactly like a broken deployment | `docker/ros-profile.sh` is now **baked into `drone-sim/ros2`** at `/etc/profile.d/10-ros.sh` (it used to be bind-mounted), and callers use `bash -lc` |
+| **`exec` bypasses the ENTRYPOINT** — exec shells have no ROS env, so `ros2 topic list` reports **0 topics on a healthy stack**, a false negative that looks exactly like a broken deployment | `runtime/local/ros-profile.sh` is now **baked into `drone-sim/ros2`** at `/etc/profile.d/10-ros.sh` (it used to be bind-mounted), and callers use `bash -lc` |
 | **Ports published on `0.0.0.0` are a real hazard** — MAVLink is unauthenticated; on this box offboard port 14540 was reachable at the LAN address *and* over the netbird overlay, so anyone routable could arm and command the vehicle. Confirmed at the socket level (`ss -lunt`) | **No ports are published at all.** Every service joins the renderer's netns, so there is nothing bound on the host; reach the stack with `docker exec`. If a port is ever published, this is why it must be `127.0.0.1` by default |
 | **The agent needs supervision** — it is the entire PX4↔ROS 2 bridge and **has** crashed here (v2.4.2 segfaulted); a crash stopped every topic while everything else still reported healthy | **Regressed, deliberately noted:** `sim-xrce` has no healthcheck and no restart policy. `sim_up.sh` verifies the stack once at bring-up and `run_gate.py` VOIDs a run whose origin cannot be read, but nothing watches the agent mid-flight. **Open** — the cheapest version is a liveness check in the gate |
 
 ### What did not carry over
 
 - The **`verify` service** (`--profile test`) that attached to the running stack rather than
-  starting its own PX4. Its successor is `scripts/run_gate.py`, which does the same thing —
+  starting its own PX4. Its successor is `runtime/local/run_gate.py`, which does the same thing —
   test the deployment, not a private copy of it.
 - The **`recording` service** — see `D-02c`.
 - The measured result it was accepted on: a full 300 s run against the composed stack, 24
@@ -278,7 +278,7 @@ while a flight runs.
 
 **Status:** ✅ done 2026-07-30 as a compose service → **SUPERSEDED BY DELETION
 (2026-08-04).** `docker/demo/` and the `recording` profile are gone. The simulator's
-equivalent is `scripts/record_flight.py` plus `drone-sim/video:v1.16.0` — a thin ffmpeg
+equivalent is `runtime/local/record_flight.py` plus `drone-sim/video:v1.16.0` — a thin ffmpeg
 layer on the PX4 base, which no longer carries Xvfb, xterm, xdotool or openbox because those
 existed to drive the four-pane Gazebo GUI capture.
 
@@ -304,7 +304,7 @@ which *looked* like success:
 
 Fix: the QGC image seeds QGC's own `[MainWindowState]` so it **starts** at the target
 geometry and is never resized; the recorder maps and raises it but no longer moves or sizes
-it. **That seeding is still in `docker/qgc.Dockerfile` and must not be removed as
+it. **That seeding is still in `containers/legacy/qgc.Dockerfile` and must not be removed as
 dead-looking config.** Remaining and cosmetic: QGC's first-run "Measurement Units" dialog
 overlays the window (`D-02b`).
 
@@ -353,14 +353,14 @@ the render/infer split is only half-exercised until something actually runs on G
 
 **Status:** **partly done** · **Pairs with:** `D-06`, `D-03`, `D-08`
 
-**Built and flying here.** `docker/unreal.Dockerfile` produces `drone-sim/unreal:ue5.8` from
+**Built and flying here.** `containers/legacy/unreal.Dockerfile` produces `drone-sim/unreal:ue5.8` from
 `ghcr.io/epicgames/unreal-engine` pinned **by digest**
 (`sha256:daac02628ea880513e18ccd1364b1cac949d40609b24c040d73872d8214a0c46`, tag
 `dev-slim-5.8.0`), and `sim_up.sh` flies against it.
 
 **Outstanding — and this is what keeps the area's goal unmet:**
 
-1. the credential step **documented** in `docker/README.md` (done) and enforced by a
+1. the credential step **documented** in `containers/legacy/README.md` (done) and enforced by a
    **preflight check that fails with a readable message rather than a registry 403** (not
    done);
 2. the same credential wired into CI (`D-05`);
@@ -449,7 +449,7 @@ the pre-rename image tags and the Gazebo-era layers are both still resident, and
 | `sim-qgc` | no | `drone-sim/qgc:v1.16.0` | the GCS datalink PX4 requires before it will arm |
 | `sim-ros2` | later | `drone-sim/ros2:v1.16.0` | the AirSim ROS 2 wrapper + our nodes |
 
-**Acceptance.** `./scripts/sim_up.sh` reaches a spawned vehicle that arms and flies, with
+**Acceptance.** `./runtime/local/sim_up.sh` reaches a spawned vehicle that arms and flies, with
 `/fmu/out/*` populated, **from a clone plus the documented credential step** — on this
 machine first, and **stated honestly that it has not been tried elsewhere.**
 
@@ -459,7 +459,7 @@ machine first, and **stated honestly that it has not been tried elsewhere.**
   Vulkan/EGL ICD JSONs.
 - **GPU selection under `-RenderOffScreen` has historically ignored app-level flags.**
   Enforce the split **at the container boundary** — see `D-03`.
-- **The Vulkan ICD symlink in `docker/unreal.Dockerfile` is a `carbonite`-only workaround**
+- **The Vulkan ICD symlink in `containers/legacy/unreal.Dockerfile` is a `carbonite`-only workaround**
   and must be labelled as one — `D-08`.
 - **The image sits on an NVIDIA CUDA base**; check its CUDA runtime against this bench's
   driver 610.43.03 at first pull rather than after a failed build. That class of mismatch is
@@ -476,7 +476,7 @@ machine first, and **stated honestly that it has not been tried elsewhere.**
 
 **Status:** `todo`
 
-**What.** GitHub Actions builds `docker/px4.Dockerfile` and runs a flight check inside it.
+**What.** GitHub Actions builds `containers/legacy/px4.Dockerfile` and runs a flight check inside it.
 
 **Why.** An image that is only ever built by hand drifts. CI is what keeps "reproducible"
 true rather than aspirational.
@@ -485,8 +485,8 @@ true rather than aspirational.
 fail, since it is genuinely unbuildable.
 
 **What tier-1 CI does today, and what it deliberately does not.** A new check,
-`scripts/check_image_refs.py`, asserts that every `drone-sim/...` reference anywhere in the
-tracked tree names an image declared under `images:` in `versions.lock`. It replaced the
+`runtime/local/check_image_refs.py`, asserts that every `drone-sim/...` reference anywhere in the
+tracked tree names an image declared under `images:` in `third_party/versions.lock`. It replaced the
 `docker compose config` step that went with the compose file, and it catches the same *class*
 of defect — a reference to something that does not exist — which did not go away when the
 file did. **It does not build anything**, by design: it has to pass on a runner with no
@@ -519,7 +519,7 @@ transports.
 ### The companion row is DONE — 2026-08-04. Agent merged into `sim-ros2`; 5 containers -> 4
 
 Prompted by "can we merge the agent, PX4 and ROS 2 — in the real world that is one machine?"
-**PX4 is not on that machine**: `versions.lock` `hardware:` puts PX4 on the Pixhawk 6C and the
+**PX4 is not on that machine**: `third_party/versions.lock` `hardware:` puts PX4 on the Pixhawk 6C and the
 agent + ROS 2 nodes on the Jetson Orin NX, joined by a UART. So the companion row is
 agent + ROS 2, PX4 stays out — and that is what shipped.
 
@@ -556,7 +556,7 @@ Verified by killing it: agent SIGKILLed at pid 55, back at pid 1546 within ~2 s,
 container in the stack had a restart policy at all — a regression from the retired compose stack
 that this row closes for the agent.
 
-**Two traps found while building it, both now in `docker/README.md`:**
+**Two traps found while building it, both now in `containers/legacy/README.md`:**
 
 1. **`MicroXRCEAgent` exits 0 on a bind failure**, so "it started and returned success" is
    compatible with no bridge at all.
@@ -621,7 +621,7 @@ Python 3.11 against Jazzy's 3.12. That stack is retired; the jammy/noble one is 
   and describes a stack that no longer exists.
 - The PX4↔agent link is **configurable, not co-located** — the address is a parameter, so
   swapping UDP for a serial link touches configuration and not the ROS graph.
-- **The flight gate still passes with unchanged numbers** — `scripts/run_gate.py`, success
+- **The flight gate still passes with unchanged numbers** — `runtime/local/run_gate.py`, success
   rate over seeded runs, plus the sensor rates (imagery at 94% and LiDAR at 100% of the
   ceilings `perception.launch.py` sets). Record them **before** the change.
 - A flight still succeeds end to end.
@@ -645,7 +645,7 @@ Python 3.11 against Jazzy's 3.12. That stack is retired; the jammy/noble one is 
 ## D-07 — Automated flight gate (deferred)
 
 **Status:** `todo` · **Deferred 2026-07-31** — running it locally is accepted instead
-(`./scripts/run_local_ci.sh --gate`). **The gate is now `scripts/run_gate.py` (`SIM-07`)**,
+(`./runtime/local/run_local_ci.sh --gate`). **The gate is now `runtime/local/run_gate.py` (`SIM-07`)**,
 which scores success rate over seeded runs and VOIDs (rather than fails) a run whose EKF
 origin was stale.
 
@@ -700,7 +700,7 @@ host (Bazzite, immutable)
 **Every image, container and flight test in this project lives at the bottom of that stack.**
 `dockerd` runs *inside* the distrobox — `/var/lib/docker` is the distrobox's own storage, and
 the daemon self-reports `Name=drone-sim.carbonite`. So the containers die with the distrobox,
-and `scripts/sim_up.sh` assumes a daemon that nothing in the repo creates.
+and `runtime/local/sim_up.sh` assumes a daemon that nothing in the repo creates.
 
 **What is missing:** how the `drone-sim` distrobox is created (image, flags, GPU passthrough),
 and how Docker is installed and started inside it. Both were done by hand before any of this was
@@ -709,7 +709,7 @@ Dockerfile is built by.
 
 **Second, subtler gap — the data is NOT inside the distrobox.** `/home/deck` is the host home
 (`/dev/nvme0n1p6[/home/deck]`, btrfs) passed through by distrobox's default home mount, so every
-bind mount in the bring-up — `sim/ue5/settings.json`, `vendor/Cosys-AirSim`, `ros2_ws`, `out/` —
+bind mount in the bring-up — `simulator/unreal/settings.json`, `vendor/Cosys-AirSim`, `ros2`, `out/` —
 resolves to host-filesystem paths. The processes are nested; the working tree is not. Worth
 stating because "it all runs in the container" is the natural assumption and is only half true.
 
@@ -722,12 +722,12 @@ That *shrinks* this task rather than growing it: there is no need to capture
 `distrobox create`, because a fresh machine should never make one. What is needed instead is an
 audit that nothing in the stack has quietly come to depend on the distrobox or on this host.
 
-**Good news first:** `scripts/sim_up.sh` is plain `docker run` throughout and should port to
+**Good news first:** `runtime/local/sim_up.sh` is plain `docker run` throughout and should port to
 native Docker unchanged. The nesting was never load-bearing for the bring-up logic.
 
 **The real risk is host-specific workarounds baked into portable-looking images:**
 
-1. **The Vulkan ICD symlink in `docker/unreal.Dockerfile` is a Bazzite/Fedora workaround.** It
+1. **The Vulkan ICD symlink in `containers/legacy/unreal.Dockerfile` is a Bazzite/Fedora workaround.** It
    exists solely because *this* host's CDI spec injects an ICD naming `/usr/lib64/…` into an
    Ubuntu container. On a native Ubuntu host with `nvidia-container-toolkit` the multiarch path
    is already correct and the symlink is dead weight — harmless, but it encodes a foreign host's
@@ -797,7 +797,7 @@ requirements. The source closure explicitly includes `vision_opencv` 4.1.0 (`cv_
 (`pcl_conversions`) and `pcl_msgs` 1.0.0, each pinned by immutable commit. This avoids
 mistaking an incomplete core `ros2.repos` manifest for a successful runtime closure. The image
 boots as an interactive GPU machine rather than auto-starting flight services. The user starts
-`/opt/drone-sim/scripts/sim_up_local.sh --detach` inside the Pod; it starts Unreal/Cosys-AirSim,
+`/opt/drone-sim/runtime/runpod/sim_up_local.sh --detach` inside the Pod; it starts Unreal/Cosys-AirSim,
 PX4 SITL, the uXRCE-DDS agent and QGroundControl without Docker.
 
 With Fern's `--vnc-viewer`, the image immediately starts a password-protected Xvfb/openbox/noVNC
@@ -811,3 +811,18 @@ Fern. `fern deploy --profile drone-sim-stack --vnc-viewer --yes` returns its aut
 URL (default password `root`); the desktop is usable before simulation start, and the local
 launcher reaches the existing settle, simulator-link, ROS workspace and finite-EKF-origin gates.
 The run needs neither a Docker daemon nor a Kubernetes cluster inside the Pod.
+
+## D-11 — Make repository boundaries reflect runtime boundaries
+
+**Status:** `in progress` — 2026-08-10.
+
+Move the supported Runpod image to `containers/stack/`, retain the prior multi-image workflow
+under `containers/legacy/`, and put executable lifecycle code under `runtime/local/` or
+`runtime/runpod/`. Move simulator settings and integration patches under `simulator/unreal/`,
+ROS packages under `ros2/`, repository configuration under `config/`, and pinned upstream
+metadata under `third_party/`. Remove duplicated tool-specific instruction Markdown while
+retaining the canonical top-level `AGENTS.md`.
+
+**Acceptance:** all tracked shell and Python sources parse; the off-target test suite, manifest
+checks, image-reference check, and worklog-render check pass with no active references to the
+retired root paths.

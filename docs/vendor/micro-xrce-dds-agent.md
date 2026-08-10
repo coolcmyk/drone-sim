@@ -69,7 +69,7 @@ to. It also avoids compiling Fast-DDS from source entirely.
 
 **Consequence:** the binary links `/opt/ros/jazzy/lib/libfastrtps.so.2.14`, so **ROS 2 must
 be sourced for the agent to run.** That is satisfied structurally rather than by convention:
-`docker/px4-entrypoint.sh` sources Jazzy before `exec "$@"`, so anything launched through the
+`runtime/local/px4-entrypoint.sh` sources Jazzy before `exec "$@"`, so anything launched through the
 image's ENTRYPOINT — including `sim_up.sh`'s `MicroXRCEAgent udp4 -p 8888` — has the library
 on its path. The entrypoint says so in a comment, because it is the kind of line that looks
 removable. If the agent is ever run as a bare systemd unit, or in an image without Jazzy,

@@ -7,7 +7,7 @@
 
 **This is the project's backlog, and there is one.** Every feature or non-trivial change
 exists here as a documented TODO *before* it is built, and is marked done when it lands
-(`.ai/AGENTS.md:154`). One cross-cutting area keeps its own file — Docker reproducibility, in
+(`AGENTS.md:154`). One cross-cutting area keeps its own file — Docker reproducibility, in
 [`docker/todo.md`](docker/todo.md). The retired Gazebo and Isaac Sim backlogs, and the
 research plan that framed them, are preserved under [`history/`](history/) rather than
 deleted — the measurements that retired them are the reason not to repeat them.
@@ -40,7 +40,7 @@ Goals, in order:
    membership plus a PAT with `read:packages`. A clone plus a Dockerfile is therefore **not
    sufficient**, and no amount of pinning changes that. The goal is restated rather than
    quietly failed: **from the repo alone, plus one documented credential step** — documented
-   in `docker/README.md`, failing with a readable message rather than a registry 403, and
+   in `containers/legacy/README.md`, failing with a readable message rather than a registry 403, and
    named up front rather than discovered halfway through a 24 GB pull. See
    [`docker/todo.md`](docker/todo.md) `D-04`.
 3. **Reuse and integrate upstream, don't reinvent.** PX4, Cosys-AirSim, Isaac ROS and
@@ -66,7 +66,7 @@ photorealistic.** Those are three separate measurements, so they are stated sepa
 | | |
 |---|---|
 | **It flies** | The unmodified ROS 2 `offboard_control` node reaches **4/4 waypoints** — errors 0.78 / 0.79 / 0.78 / 0.78 m — then lands and disarms. Reproduced three times, once from a cold start. **The controller was never patched**; only the transport was swapped (`SIM-09`). |
-| **The sensors are real** | RGB, depth, GPU-LiDAR, IMU, GPS, magnetometer and odometry all publish and pass **value-based** checks: IMU reads 9.807 m/s² at rest, depth carries bounded returns, LiDAR points are not all at the origin, RGB is not a blank frame (`SIM-04`, `scripts/verify_sensors.py`). |
+| **The sensors are real** | RGB, depth, GPU-LiDAR, IMU, GPS, magnetometer and odometry all publish and pass **value-based** checks: IMU reads 9.807 m/s² at rest, depth carries bounded returns, LiDAR points are not all at the origin, RGB is not a blank frame (`SIM-04`, `runtime/local/verify_sensors.py`). |
 | **The imagery is photoreal** | `simGetImages` matches Unreal's own render of the **same camera actor at the same transform** to **1.15 of 255**, across six scenes from close-up to 70 m — on a **stock** plugin binary, via three `settings.json` keys (`SIM-11`). |
 | **It runs on someone else's world** | A real Fab project declaring `EngineAssociation: "4.24"` — a UE4 project from 2019 — loaded in UE5.8 headless with no conversion: 856 scene objects, AirSim serving, the vehicle placed by coordinate (`SIM-11`, `SIM-13`). |
 
@@ -196,8 +196,8 @@ What is known: it is not a collision, not a VOID, and not spawn-dependent (it ha
 passed uniformly, then a single-seed run failed. Still open, and it is the one thing standing
 between this gate and a success rate anyone should quote without a caveat.
 
-`scripts/run_gate.py` is the simulator's gate: `scripts/run_scenario.py` drives
-`scripts/sim_up.sh`, and the gate keeps its scoring semantics unchanged — **VOID is distinct
+`runtime/local/run_gate.py` is the simulator's gate: `runtime/local/run_scenario.py` drives
+`runtime/local/sim_up.sh`, and the gate keeps its scoring semantics unchanged — **VOID is distinct
 from FAIL**, a void run is excluded from the success rate *and* separately blocks the
 criterion (excluding without blocking would let a gate where 9 of 10 runs were void report
 100%). What does not exist yet is a full seeded run against this stack. **Until it does, the
@@ -217,7 +217,7 @@ covering varied conditions.**
   deterministic.
 - **A stale PX4 EKF origin makes the vehicle report tens of metres of altitude while
   grounded**, and it looks exactly like a control bug. Bring the stack up with
-  `scripts/sim_up.sh`, which verifies and repairs it; `run_gate.py` **VOIDs** such runs rather
+  `runtime/local/sim_up.sh`, which verifies and repairs it; `run_gate.py` **VOIDs** such runs rather
   than failing them.
 - **Frames are NWU, not ENU**, despite upstream's docs saying otherwise. The conversion lives
   in `control/frames.py` — the single conversion point [`conventions.md`](conventions.md) §3
@@ -301,7 +301,7 @@ is recorded in [`vendor/cosys-airsim.md`](vendor/cosys-airsim.md).
 
 Tasks are `SIM-NN` — `SIM-01`, `SIM-11`. **Never write them as `#N`.** A bare `#N` in a PR
 body, issue, or commit message auto-links to an unrelated same-repo issue
-(`.ai/AGENTS.md:243`). `SIM-11` cannot mis-link, which is why the scheme exists.
+(`AGENTS.md:243`). `SIM-11` cannot mis-link, which is why the scheme exists.
 
 Cross-repo references are always fully qualified: `PX4/PX4-Autopilot#25089`, never
 `PX4-Autopilot#25089` (which does not link at all) and never a bare `#25089`.
@@ -320,23 +320,23 @@ These are not tasks; they are constraints every task inherits.
 - **Verify by running it, end to end.** A clean `colcon build` proves nothing about flight.
   Exercise the full ROS 2 graph against the simulator and record the evidence — MCAP bag,
   metric table, measured latency. If you cannot verify, say so and name the blocker
-  (`.ai/AGENTS.md:305`).
+  (`AGENTS.md:305`).
 - **A success rate over N seeded runs, never a single pass.** A flaky green is a fail until
   the real-time-factor floor holds.
 - **Reuse upstream; don't reinvent.** PX4, Cosys-AirSim, Isaac ROS and EGO-Planner are pinned
   and wrapped. The original work is the glue and the experiment harness.
 - **Version coupling is the architecture.** `px4_msgs` branch-matched to firmware, one ROS 2
   distro (Jazzy), and the engine tag pinned together with the Cosys-AirSim SHA. See
-  [`../versions.lock`](../versions.lock). **The two-PX4-tree question is settled:** the
+  [`../third_party/versions.lock`](../third_party/versions.lock). **The two-PX4-tree question is settled:** the
   simulator drives **v1.16.0** — the same line the real Pixhawk 6C is flashed from — so the
   project needs one tree, not two (`SIM-03`). The v1.14.3 pin belonged to Pegasus, which is
   retired with Isaac Sim.
 - **Least-destructive vendor edits.** `vendor/` stays byte-identical to upstream; every
   deviation is a numbered patch under `patches/`, applied to a container-local copy by
-  `scripts/build_airsim_wrapper.sh`, and written down in
+  `runtime/local/build_airsim_wrapper.sh`, and written down in
   [`vendor/cosys-airsim.md`](vendor/cosys-airsim.md).
 - **Never command the real aircraft without explicit per-run approval.** SITL is exempt and
-  safe; say which you are doing. Approval never carries over (`.ai/AGENTS.md:120`).
+  safe; say which you are doing. Approval never carries over (`AGENTS.md:120`).
 
 ---
 
@@ -372,7 +372,7 @@ reach it. The capability exists; the software cannot use it.
 | Doc | What it is |
 |---|---|
 | [`quickstart.md`](quickstart.md) | How to run it — launch, world selection, sensors, topics, commanding |
-| [`../versions.lock`](../versions.lock) | The pinned toolchain and the couplings CI must assert |
+| [`../third_party/versions.lock`](../third_party/versions.lock) | The pinned toolchain and the couplings CI must assert |
 | [`roadmap.html`](roadmap.html) | Capabilities and status, as a single page |
 | [`bench.md`](bench.md) | The machine and container being worked in |
 | [`conventions.md`](conventions.md) | Frames, units and message contracts — ENU/FLU outside, NED inside, converted in one tested place |
@@ -387,14 +387,14 @@ reach it. The capability exists; the software cannot use it.
 
 ## Execution order — deliberately not ID order
 
-IDs are stable references (`versions.lock` and the roadmap cite `SIM-01`, `SIM-02`,
+IDs are stable references (`third_party/versions.lock` and the roadmap cite `SIM-01`, `SIM-02`,
 `SIM-03`), so new tasks take new numbers rather than renumbering the old ones. Execution
 order is a separate question, and it has changed twice.
 
 | Order | Task | State |
 |---|---|---|
 | 1 | `SIM-06` ROS 2 wrapper on Jazzy | ✅ **done 2026-08-01** — builds in 1m21s, artifacts asserted |
-| 2 | `SIM-01` harden the Cosys-AirSim / UE pin | ✅ **done 2026-07-31** — both gates cleared, tag and SHA in `versions.lock` |
+| 2 | `SIM-01` harden the Cosys-AirSim / UE pin | ✅ **done 2026-07-31** — both gates cleared, tag and SHA in `third_party/versions.lock` |
 | 3 | `SIM-02` UE5.8 base image and source build | ✅ **done 2026-08-01** — image pulled, digest matched the registry query, plugin compiles and links |
 | 4 | `SIM-03` PX4 ↔ Cosys-AirSim and `/fmu/*` parity | ✅ **done 2026-08-01** — 51 `/fmu/` topics, identical to the Gazebo baseline's |
 | 5 | `SIM-09` make it actually fly | ✅ **done 2026-08-01** — 4/4 waypoints; a stale PX4 EKF origin, not lockstep |
@@ -470,11 +470,11 @@ health: we are plausibly an early adopter of this path.
 **Acceptance.** One of two recorded outcomes, both useful:
 
 - **Builds** → record the dependency list and any patches needed, and set the wrapper's
-  `builds_against: jazzy` in `versions.lock` with the evidence.
+  `builds_against: jazzy` in `third_party/versions.lock` with the evidence.
 - **Does not build** → record the *specific* failure (missing package, API change, message
   incompatibility), not "it failed". The escape hatch is a small header patch carried as a
   patch file in this repo — **not** a distro flip, and **not** a Humble sidecar (the
-  `ros2_distro_fallback` entry in `versions.lock` explains why that idea was withdrawn the
+  `ros2_distro_fallback` entry in `third_party/versions.lock` explains why that idea was withdrawn the
   same day it was written).
 
 **Traps.**
@@ -503,7 +503,7 @@ proved itself when `SIM-02` pulled the image and the digest matched byte for byt
 
 **Chosen 2026-07-31:** tag **`5.8-v3.4.1`**, SHA **`a552dd6cd517b8d5d26629ad88004356c3007326`**,
 targeting **UE5.8**. Reasoning and the measured evidence are above; the full record is in
-`versions.lock`, under the Cosys-AirSim entry.
+`third_party/versions.lock`, under the Cosys-AirSim entry.
 
 ### Both gates cleared — 2026-07-31
 
@@ -545,12 +545,12 @@ docker manifest inspect ghcr.io/epicgames/unreal-engine:dev-slim-5.8.0
 
 **It reproduced.** `SIM-02` pulled the image on 2026-08-01 and the digest came back
 `sha256:daac02628ea880513e18ccd1364b1cac949d40609b24c040d73872d8214a0c46` — byte-identical to
-the one recorded from the registry query. The pin is now `LOCKED` in `versions.lock`.
+the one recorded from the registry query. The pin is now `LOCKED` in `third_party/versions.lock`.
 
 **Pin the three-component tag, never `dev-slim-5.8`.** Both resolve to the same digest
 today, but the two-component form is a moving alias — the registry shows `dev-slim-5.5` and
 `dev-slim-5.5.4` sharing one digest, i.e. `-5.5` tracked four patch releases. It is the
-pin-a-SHA-not-a-branch coupling in `versions.lock`, applied to an image. And do not write a
+pin-a-SHA-not-a-branch coupling in `third_party/versions.lock`, applied to an image. And do not write a
 `5.8.1` tag on the
 assumption it will appear: `dev-slim-5.8.1` is a 404, and Epic does not image every hotfix
 (there is no `dev-5.7.1` at all).
@@ -559,7 +559,7 @@ assumption it will appear: `dev-slim-5.8.1` is a 404, and Epic does not image ev
 the repo at all** (only a stale `5.5dev` last touched 2026-01-14), and `main` has already
 migrated 5.5 → 5.6dev → 5.7pdev → 5.8. The exact branch-evaporation failure this rule exists
 for has already happened upstream. `main` currently points at `a552dd6c` — **do not pin
-`main`**, it will move to 5.9. Recorded as a `versions.lock` coupling, which this project
+`main`**, it will move to 5.9. Recorded as a `third_party/versions.lock` coupling, which this project
 earned twice: eProsima deleted the Fast-DDS branch the XRCE agent's `v2.4.2` tag depended on,
 and QGroundControl's `latest` channel had to be repinned to an exact release.
 
@@ -576,7 +576,7 @@ Checked and blocked 2026-07-31: `ghcr.io` denies anonymous reads for this reposi
 (HTTP 403, `DENIED: invalid token`), and no ghcr credentials are configured in the container.
 Confirming the tag needs an authenticated `docker manifest inspect` as the Epic-org account.
 
-**Acceptance.** `versions.lock` carries the SHA, the confirmed engine image tag, and the
+**Acceptance.** `third_party/versions.lock` carries the SHA, the confirmed engine image tag, and the
 Cesium answer — with the evidence each was chosen for.
 
 **Fallback, with a caveat that has changed.** Colosseum (UE5.6) — but Colosseum was
@@ -635,7 +635,7 @@ the earlier "the tag was verified" error.
 **Reproducibility hazard, flag it now:** CI will need its own credential with the same org
 membership. That is a real gap against the *"fresh machine from the repo alone"* goal — a
 clone plus a Dockerfile is not sufficient to build the engine image. It is the one documented
-exception in the project goals above. Document the credential step in `docker/README.md`
+exception in the project goals above. Document the credential step in `containers/legacy/README.md`
 before `D-05`.
 
 **Check the CUDA runtime against the host driver at first pull**, not after a failed build.
@@ -647,7 +647,7 @@ of mismatch that killed Isaac Sim on this host.
 **Traps.**
 - **Do not run a UE5 shader compile concurrently with other GPU work** — the hardware
   assessment is explicit that 64 GB will not comfortably hold UE5 compilation alongside a
-  heavy sim (`03_hardware_assessment.md:86`). Recorded as a `versions.lock` rule.
+  heavy sim (`03_hardware_assessment.md:86`). Recorded as a `third_party/versions.lock` rule.
 - **Budget disk before starting.** The internal NVMe is the constrained volume — currently
   ~262 GB free. Isaac Sim's images were already deleted to reclaim ~36 GB when that stack was
   dropped. UE5 projects and assets belong on the **external drive**, under
@@ -723,7 +723,7 @@ graph must see the same `/fmu/out/*` topics the real Pixhawk 6C produces, so a c
 written against the real aircraft ports across **unchanged**. If autonomy ends up subscribing
 to `/airsim/*` poses instead, the code that flies in sim is not the code that flies on the
 aircraft, and that divergence will not surface until the first real flight. Recorded as a
-topic-parity coupling in `versions.lock`.
+topic-parity coupling in `third_party/versions.lock`.
 
 **Which PX4 tree?** The open question this task exists to answer. **v1.16.0** is already
 built and working, and it is the tree the real Pixhawk 6C is flashed from. Cosys-AirSim talks
@@ -824,8 +824,8 @@ returning — `close()`→`disconnect()`→`resetState()` (`:957`) and directly 
 sets it again, so the `:1613` guard can never pass. Runtime confirms: **zero** `"Enabling
 lockstep mode"` across a full session while another message from the *same* `addStatusMessage`
 path does appear; measured RTF 0.9193 tracks wall time. **`"LockStep": true` is silently
-ineffective, so every timing number from this simulator is free-running** — recorded in `versions.lock` and
-`sim/ue5/settings.json`. It does not explain the takeoff failure; free-running SITL flies fine.
+ineffective, so every timing number from this simulator is free-running** — recorded in `third_party/versions.lock` and
+`simulator/unreal/settings.json`. It does not explain the takeoff failure; free-running SITL flies fine.
 
 **(b) The vehicle thinks it is already at 35 m — THIS is the cause.**
 
@@ -924,7 +924,7 @@ inference.
 **Status:** ✅ **done — 2026-08-09.** Built and verified once on 2026-08-01; the "N times in a row" evidence it was waiting on arrived with the 10-seed gate on `main` @ `f153384`: **ten consecutive cold bring-ups, ten sane EKF origins, zero VOID runs.** The one failed seed (`SIM-27`) failed on landing, with its origin verified like the other nine.
 Evidence: [`worklog/2026-08-01-c10-deterministic-bringup.md`](worklog/2026-08-01-c10-deterministic-bringup.md)
 
-`scripts/sim_up.sh` cold-starts the stack in 83 s unattended and `scripts/check_ekf_origin.py`
+`runtime/local/sim_up.sh` cold-starts the stack in 83 s unattended and `runtime/local/check_ekf_origin.py`
 asserts the origin before anything flies. On its first honest cold start the check **caught a real
 stale origin at 9.069 m** — not a replay of `SIM-09`'s 35.167 m but a fresh race at a different
 magnitude — restarted PX4, re-verified at 0.000 m apart, and the stack then flew **4/4**
@@ -1016,7 +1016,7 @@ per-seed wait is exactly the kind of change that quietly triples a gate.
 - **The depth assertion could not fail.** `max(pos) > 0.5` passes on a frame where every pixel
   is the 16312 m no-return sentinel. Replaced with `depth_is_usable()`, requiring bounded
   returns.
-- **`versions.lock` contradicted itself** — `status: LOCKED` alongside `why_not_LOCKED_yet`.
+- **`third_party/versions.lock` contradicted itself** — `status: LOCKED` alongside `why_not_LOCKED_yet`.
   Fixed on both branches, and `check_versions_conflicts.py` now fails CI on the whole class.
 
 56 tests, each new one verified by breaking the code it guards.
@@ -1035,7 +1035,7 @@ LiDAR   17.4 Hz  8192 points      IMU    366 Hz published / 311 Hz distinct
 GPS / magnetometer / odometry  365 Hz    camera_info resolves in TF    /clock advancing
 ```
 
-Verified with `scripts/verify_sensors.py`, which asserts **values** rather than topic
+Verified with `runtime/local/verify_sensors.py`, which asserts **values** rather than topic
 presence — IMU reads 9.807 m/s² at rest, depth contains bounded returns, LiDAR points are not
 all at the origin, RGB is not a blank frame.
 
@@ -1144,18 +1144,18 @@ in-place edit:
    | 3 | Polled IMU | **CONFIRMED, quantified** — 1501 Hz published, 6630 distinct, **77.9% duplicates**, real rate ~333 Hz, gaps to 3× base |
    | 4 | `camera_info` frame_id | **CONFIRMED and FIXED** — `camera_info` said `front_center_optical` while TF and the image said `PX4/front_center_optical`. Patch `0002`; verified |
 
-   **Cameras and GPU-LiDAR are now in the graph** — `sim/ue5/settings.json` gained a `Cameras`
+   **Cameras and GPU-LiDAR are now in the graph** — `simulator/unreal/settings.json` gained a `Cameras`
    block (RGB + `DepthPlanar`, 640×480) and a GPU-LiDAR (`SensorType: 8`). **19 topics, up from
    14**, carrying real data: 640×480 rgb8 and an 8192-point cloud. Parsing semantics were checked
    *before* editing — `loadCameraSettings` clears but defaults to an empty map (additive), while
    per-vehicle `Sensors` is iterated by key (so the LiDAR was added alongside the existing four,
    with an assertion that all five survive).
 
-   **The build is also no longer ephemeral:** `patches/cosys-airsim/*.patch` +
-   `scripts/build_airsim_wrapper.sh` reproduce it in ~2 min with `vendor/` pristine. The script
+   **The build is also no longer ephemeral:** `simulator/unreal/patches/cosys-airsim/*.patch` +
+   `runtime/local/build_airsim_wrapper.sh` reproduce it in ~2 min with `vendor/` pristine. The script
    applies every patch in numbered order and asserts each one's artifact.
 
-   **Trap 2 is now fixed properly** — `ros2_ws/src/bringup/launch/perception.launch.py`
+   **Trap 2 is now fixed properly** — `ros2/src/bringup/launch/perception.launch.py`
    sets `publish_clock:=true` and remaps `/airsim_node/clock` → `/clock` unconditionally.
    `ros2 launch bringup perception.launch.py` with **no flags** gives a ticking `/clock`.
 
@@ -1166,7 +1166,7 @@ in-place edit:
    that module earns; pinned by a dedicated test. 7 new tests, 15 in the file, verified by
    breaking the implementation. *Nothing consumes it yet* — that is `SIM-05`'s job.
 
-   **Navigation-readiness verified 2026-08-02** — `scripts/verify_sensors.py` checks
+   **Navigation-readiness verified 2026-08-02** — `runtime/local/verify_sensors.py` checks
    sensor **values**, not topic presence, and all required checks pass:
 
    | | before | after |
@@ -1185,9 +1185,9 @@ in-place edit:
    that patch `0001` had introduced.
 
    **Artifacts delivered (filed retroactively — these were built before being written down,
-   which the plan-first rule says should not happen):** `scripts/verify_sensors.py`,
-   `scripts/build_airsim_wrapper.sh`, `patches/cosys-airsim/000{1,2,3}`,
-   `ros2_ws/src/bringup/launch/perception.launch.py`, and
+   which the plan-first rule says should not happen):** `runtime/local/verify_sensors.py`,
+   `runtime/local/build_airsim_wrapper.sh`, `simulator/unreal/patches/cosys-airsim/000{1,2,3}`,
+   `ros2/src/bringup/launch/perception.launch.py`, and
    [`vendor/cosys-airsim.md`](vendor/cosys-airsim.md).
 
    **Still open on `SIM-04`:**
@@ -1416,7 +1416,7 @@ A1 pipeline than treated as a prerequisite.
 
 ### ✅ A1 IS BUILT AND PROVEN END TO END — 2026-08-03
 
-`scripts/inject_airsim.py` takes a user's `.uproject` and injects AirSim with **no compile, no
+`runtime/local/inject_airsim.py` takes a user's `.uproject` and injects AirSim with **no compile, no
 editor, no GUI, no display**. Verified against a project that was never ours:
 
 ```
@@ -1652,7 +1652,7 @@ mismatch, not an exposure fault.
 
 ### The plan to fix it, and an honest correction to the confidence above
 
-**Written as `patches/cosys-airsim/0004-scene-capture-ldr.patch` but NOT yet validated.**
+**Written as `simulator/unreal/patches/cosys-airsim/0004-scene-capture-ldr.patch` but NOT yet validated.**
 
 | # | step | status |
 |---|---|---|
@@ -1811,7 +1811,7 @@ determinism sits on the C++ side of that line**, which matters because the gate 
 
 1. A user-supplied `.uproject` (A1) is loaded by `sim_up.sh` **without editing the repo** —
    pointed at by path/parameter — and the drone flies in it.
-2. `scripts/verify_sensors.py` passes against that world, with **re-measured** rates.
+2. `runtime/local/verify_sensors.py` passes against that world, with **re-measured** rates.
 3. Actors are present and moving, and the cameras see them.
 4. A bundled **example world** exists so the simulator is useful out of the box (see below).
 5. The steps a user must perform on a non-Linux machine are **documented**, not folklore.
@@ -1836,7 +1836,7 @@ natural/cluttered-outdoor scene, not a city — acceptable for a default.
 - **Rendering cost is entirely unmeasured.** Re-measure per world; a heavy user world may not
   hold it.
   **Partly answered 2026-08-03** — the image-quality settings were priced on the real ROS 2
-  graph (two cameras + GPU-LiDAR, Blocks, `scripts/measure_sensor_rates.sh`):
+  graph (two cameras + GPU-LiDAR, Blocks, `runtime/local/measure_sensor_rates.sh`):
 
   | config | RGB | depth | LiDAR | IMU |
   |---|---|---|---|---|
@@ -1870,7 +1870,7 @@ with is solved and verified, and this residue does not block building the simula
 
 AirSim's `simGetImages` carries visibly more high-frequency speckle and colour fringing on
 foliage than Unreal's `HighResShot` of the identical view. `"ForceUpdate": true` (now shipped in
-`sim/ue5/settings.json`) removes the Lumen-attributable part — measured −13.9% at 1080p, and a
+`simulator/unreal/settings.json`) removes the Lumen-attributable part — measured −13.9% at 1080p, and a
 Lumen-off control confirms it is specifically denoising Lumen's stochastic GI sampling.
 
 **What is left is not trustworthy as a number.** A residual of ~17.6 vs native ~7.0 survives
@@ -1883,7 +1883,7 @@ distinguish speckle from sharpness, and the native frame is measurably blurrier.
 **So the first task here is a better metric, not a better fix**: match blur before comparing, or
 score chroma against a luma-preserving baseline. Only then is "how much noisier" a real question.
 
-Rejected already, with numbers (`out/noise-exp/`, `scripts/noise_experiment.py`):
+Rejected already, with numbers (`out/noise-exp/`, `runtime/local/noise_experiment.py`):
 - `r.AntiAliasingMethod 1` (FXAA) — AirSim's own noise went *up* 2%. Its better-looking *ratio*
   was an artifact of degrading the native reference too (hf 7.04 → 10.36). **Ratios are only
   meaningful when the denominator holds still.**
@@ -1903,17 +1903,17 @@ leaving it undocumented. Eight artifacts, all reusable, all in the repo:
 
 | artifact | what it is for |
 |---|---|
-| `docker/airsim-client.Dockerfile` | pinned AirSim RPC client, replacing throwaway `pip install`s |
-| `scripts/_capture_client.py` | single capture; encodes *never `simPause`* and *hold pose by re-assertion* |
-| `scripts/capture_experiment.py` | settings variants as a factorial, one simulator run per cell |
-| `scripts/capture_pose_sweep.py` | many poses in ONE run (pose is free over RPC; settings are not) |
-| `scripts/capture_vs_native.py` + `_capture_paired.py` | AirSim vs Unreal `HighResShot`, same actor, same frame |
-| `scripts/compare_vs_native.py` | scores the pairs; crops `HighResShot`'s letterbox first |
-| `scripts/noise_experiment.py` + `_capture_noise.py` + `noise_compare.py` | prices anti-aliasing levers, measures capture rate |
-| `scripts/measure_sensor_rates.sh` | sensor rates across image-quality configs on the real graph |
-| `scripts/_check_channel_order.py` | asserts the raw buffer is RGB against AirSim's own PNG encoder |
+| `containers/legacy/airsim-client.Dockerfile` | pinned AirSim RPC client, replacing throwaway `pip install`s |
+| `runtime/local/_capture_client.py` | single capture; encodes *never `simPause`* and *hold pose by re-assertion* |
+| `runtime/local/capture_experiment.py` | settings variants as a factorial, one simulator run per cell |
+| `runtime/local/capture_pose_sweep.py` | many poses in ONE run (pose is free over RPC; settings are not) |
+| `runtime/local/capture_vs_native.py` + `_capture_paired.py` | AirSim vs Unreal `HighResShot`, same actor, same frame |
+| `runtime/local/compare_vs_native.py` | scores the pairs; crops `HighResShot`'s letterbox first |
+| `runtime/local/noise_experiment.py` + `_capture_noise.py` + `noise_compare.py` | prices anti-aliasing levers, measures capture rate |
+| `runtime/local/measure_sensor_rates.sh` | sensor rates across image-quality configs on the real graph |
+| `runtime/local/_check_channel_order.py` | asserts the raw buffer is RGB against AirSim's own PNG encoder |
 
-`docker/airsim-client.Dockerfile` pins `msgpack-rpc-python==0.4.1`, `tornado<5`,
+`containers/legacy/airsim-client.Dockerfile` pins `msgpack-rpc-python==0.4.1`, `tornado<5`,
 `numpy==1.26.4`, `opencv-python-headless==4.10.0.84` — the first two because msgpack-rpc-python
 is unmaintained and tornado ≥ 5 breaks its IOLoop usage.
 
@@ -1929,7 +1929,7 @@ already knows where their own world is usable.
 **The change.** Let the operator pass a spawn position **when starting the simulator**:
 
 ```
-scripts/sim_up.sh --spawn X,Y,Z[,YAW]        # or: SPAWN=X,Y,Z ./scripts/sim_up.sh
+runtime/local/sim_up.sh --spawn X,Y,Z[,YAW]        # or: SPAWN=X,Y,Z ./runtime/local/sim_up.sh
 ```
 
 It writes vehicle-level `X`/`Y`/`Z`/`Yaw` (`AirSimSettings.hpp:1061-1062`,
@@ -1952,7 +1952,7 @@ artifact would be wrong.
 3. ✅ Malformed input fails with a message naming the problem and the stack does not start —
    `1,2` / `a,b,c` / `1,2,nan` / positive `Z` unacknowledged all exit 1 with no container
    created.
-4. ✅ The committed `sim/ue5/settings.json` is byte-identical after a spawn run (md5 checked).
+4. ✅ The committed `simulator/unreal/settings.json` is byte-identical after a spawn run (md5 checked).
 5. ✅ 25 off-target unit tests (`tests/test_apply_spawn.py`).
 6. ⚠️ **Dropped as written.** The original criterion was "`min(depth) > 1.0 m` at spawn". It
    cannot distinguish *buried in terrain* from *legitimately landed on grass* — a landed
@@ -1980,7 +1980,7 @@ argument for `SIM-14`.
 **Not a bug — a fuse-overlayfs constraint worth remembering.** The generated settings file
 cannot live in `/tmp`: it is on the container's fuse-overlayfs and a read-only bind mount from
 there is refused (`remount-ro …: operation not permitted`). It is written to
-`sim/ue5/.settings.run.json` (gitignored) instead, beside the source, which is a host bind
+`simulator/unreal/.settings.run.json` (gitignored) instead, beside the source, which is a host bind
 mount and mounts identically.
 
 **Blocks:** the rest of `SIM-11` (dynamic actors, `-startSeed`) — unblocked for any world where
@@ -2034,10 +2034,10 @@ Requiring users to add a `PlayerStart` to their level would defeat the point of 
 3. **The pose is stable without `simSetVehiclePose` re-assertion** — the drone rests on ground
    rather than falling, so captures no longer need a holding loop. This is the acceptance
    criterion that retires the workaround.
-4. `scripts/verify_sensors.py` passes against City Park with rates re-measured, and the
+4. `runtime/local/verify_sensors.py` passes against City Park with rates re-measured, and the
    numbers recorded here.
 
-**Verification.** `scripts/capture_pose_sweep.py` against the derived spawn (contrast should be
+**Verification.** `runtime/local/capture_pose_sweep.py` against the derived spawn (contrast should be
 near its peak, not on the buried-camera shoulder), plus the sensor verifier above. Both already
 exist.
 
@@ -2090,11 +2090,11 @@ them casually. Confirming this is the main point of the task.
 3. **Velocity:** commanded 2 m/s on one axis, measured velocity matches within 0.5 m/s for
    ≥3 s **and** position integrates in the right direction — velocity alone can be satisfied by
    a stationary vehicle reporting noise, so both are required.
-4. **Sensors:** `scripts/verify_sensors.py` passes (already automated).
+4. **Sensors:** `runtime/local/verify_sensors.py` passes (already automated).
 5. **Every command and reading crosses the ROS 2 graph** — no MAVLink shortcut, no RPC.
    Recorded as an MCAP bag so the evidence is reviewable rather than asserted.
 
-**Verification.** One script, `scripts/verify_nav_interface.py`, run against a `sim_up.sh`
+**Verification.** One script, `runtime/local/verify_nav_interface.py`, run against a `sim_up.sh`
 stack; each capability isolated so a failure names which one. Rejections and timeouts are
 failures, not warnings.
 
@@ -2266,7 +2266,7 @@ was the real one. The pivot removes a fork in every doc and every script.
 |---|---|
 | Deleted | the compose stack, the container smoke test, the Gazebo world/wind overlay generator and its tests, the demo recorder, the `vlm/` and `vlm_client` placeholders, the Gazebo and Isaac asset stubs |
 | Renamed | `sim_up.sh`, `verify_sensors.py`, `measure_sensor_rates.sh`, `record_flight.py`, `perception.launch.py`; images `drone-sim/px4`, `drone-sim/unreal`, `drone-sim/video`; containers `sim-*`; volume `sim-ddc` |
-| Rebuilt | `docker/px4.Dockerfile` with `--no-sim-tools` — **11.6 GB → 11.0 GB measured**, with a build-time assertion that Gazebo is absent. NuttX kept: real Pixhawk 6C firmware is flashed from that tree |
+| Rebuilt | `containers/legacy/px4.Dockerfile` with `--no-sim-tools` — **11.6 GB → 11.0 GB measured**, with a build-time assertion that Gazebo is absent. NuttX kept: real Pixhawk 6C firmware is flashed from that tree |
 | Rewired | `run_scenario.py` drives `sim_up.sh` instead of compose; `run_gate.py` keeps its VOID/FAIL scoring and becomes this simulator's gate |
 | Archived | the Gazebo and Isaac backlogs and the four research reports, under `history/`, banner-stamped as frozen |
 | Renumbered | `C-NN` → `SIM-NN`, with the mapping in [`history/id-map.md`](history/id-map.md) so old commit messages stay traceable |
@@ -2276,7 +2276,7 @@ was the real one. The pivot removes a fork in every doc and every script.
 - **`docs/worklog/` is frozen.** The worklogs keep their original wording and filenames,
   including the retired terminology. They are dated records of what was actually done; a
   worklog edited to match a later decision is no longer evidence. The one consequence to
-  know: `docker/px4.Dockerfile` cites a worklog whose *filename* still carries the old
+  know: `containers/legacy/px4.Dockerfile` cites a worklog whose *filename* still carries the old
   scheme, and that link is correct.
 - **Wind and mass are no longer seeded.** They came from a Gazebo world overlay that is
   gone, so a seed now moves the spawn pose and nothing else. `run_scenario.py` says so at
@@ -2286,8 +2286,8 @@ was the real one. The pivot removes a fork in every doc and every script.
 
 **Two defects the pivot exposed, both real and both fixed:**
 
-1. **`versions.lock` never recorded the Unreal image.** It had been built and flown for days
-   without an entry under `images:`. Found by `scripts/check_image_refs.py` on its first
+1. **`third_party/versions.lock` never recorded the Unreal image.** It had been built and flown for days
+   without an entry under `images:`. Found by `runtime/local/check_image_refs.py` on its first
    run — a new tier-1 check, written to replace the `docker compose config` step that went
    with the compose file. It asserts every `drone-sim/...` reference names an image the lock
    declares, which is the same class of defect the old step caught.
@@ -2407,7 +2407,7 @@ Together **~5.7 GB of 11.0 GB**, with nothing that runs losing anything.
 
 ### Slice 1 — DONE 2026-08-06: strip the PX4 image
 
-Split `docker/px4.Dockerfile` into stages. `firmware` clones the full PX4 tree, installs the
+Split `containers/legacy/px4.Dockerfile` into stages. `firmware` clones the full PX4 tree, installs the
 NuttX/ARM toolchain and builds SITL; `runtime` returns to `base` and copies **only**
 `/opt/px4/build`. A stage split rather than a delete, because **`apt purge` in a later layer
 reclaims nothing** — the bytes stay in the earlier layer.
@@ -2444,7 +2444,7 @@ gps_waypoint.
    remove it. That is the second time this entry's stated cause was wrong; the first was
    `ros-jazzy-desktop`, also killed by measurement.
 2. **`build_airsim_wrapper.sh` was broken by patch `0005`, and this caught it.** That script applies
-   *every* patch in `patches/cosys-airsim/`, but `0005` is an **Unreal plugin** patch and the
+   *every* patch in `simulator/unreal/patches/cosys-airsim/`, but `0005` is an **Unreal plugin** patch and the
    wrapper build root has no `Unreal/` tree — so `patch` prompted on stdin and the build died. It
    now skips Unreal-side patches (`convert_world.sh` applies those) and passes `--batch` so a
    mismatch fails instead of hanging. **This was a live regression on `main`**, shipped in the
@@ -2506,7 +2506,7 @@ px4 without ROS          466 MB      <- 10x, and it BOOTS:
 
 1. **`px4` drops ROS entirely — 4.73 GB -> 466 MB.** Prerequisites: move the XRCE agent build from
    `px4.Dockerfile` into `ros2.Dockerfile` (the agent runs in `sim-ros2`, not `sim-px4`), and make
-   `docker/px4-entrypoint.sh` stop sourcing ROS unconditionally — it runs under `set -e`, so a
+   `runtime/local/px4-entrypoint.sh` stop sourcing ROS unconditionally — it runs under `set -e`, so a
    missing `/opt/ros/jazzy/setup.bash` would kill the container.
 2. **`qgc` and `video` off the PX4 base.** Both use nothing from it. `qgc` must re-add `curl`,
    `ca-certificates` and `/etc/drone-sim-versions`, which it currently inherits.
@@ -2528,7 +2528,7 @@ so a shared base is right for those two and only those two.
 Proposed shape, to be confirmed by building it:
 
 (names below are PROPOSED, not built — deliberately written without the `drone-sim/` prefix,
-because `scripts/check_image_refs.py` correctly fails on a reference to an image the repo does
+because `runtime/local/check_image_refs.py` correctly fails on a reference to an image the repo does
 not build, and it caught exactly that when this entry was first written)
 
 ```
@@ -2550,7 +2550,7 @@ surprise you, and the numbers are worth nothing until an image exists.
 
 ### One item that is not about size
 
-**`docker/unreal.Dockerfile:76-98` bakes a host assumption into an image.** The Vulkan ICD
+**`containers/legacy/unreal.Dockerfile:76-98` bakes a host assumption into an image.** The Vulkan ICD
 symlink (`/usr/lib64/libGLX_nvidia.so.0`) exists because this host is Bazzite/Fedora-family and
 its CDI spec injects an ICD naming a Fedora path absent from an Ubuntu container — without it
 UE's renderer cannot start at all. Documented, load-bearing, and verified with `vulkaninfo`. But
@@ -2588,7 +2588,7 @@ unproven simulator.
 - **The Omniverse FSD-vs-PhysX exclusion does NOT automatically apply here.** That is a
   Cesium-for-*Omniverse* constraint; Cesium for Unreal is a different plugin. Whether UE5
   gives georeferenced terrain *with* physics is **open — verify, do not inherit the answer**
-  (`versions.lock` records this as a scope correction).
+  (`third_party/versions.lock` records this as a scope correction).
 - **Google 3D Tiles go black at drone altitude.** Documented at 10–500 ft AGL in both
   plugins. `04`'s decision threshold: if tiles render black below ~150 ft AGL for an AOI,
   switch that scenario to OSM+PCG or photogrammetry meshes.
@@ -2731,7 +2731,7 @@ Result: **396/396, exit 0.**
 
 **2 — It had no ground.** World Partition activates cells around a registered **streaming
 source**, normally the player pawn. AirSim spawns its vehicle without one, so no cell ever loaded
-and the vehicle fell forever. Fixed by `patches/cosys-airsim/0005-worldpartition-streaming-source.patch`,
+and the vehicle fell forever. Fixed by `simulator/unreal/patches/cosys-airsim/0005-worldpartition-streaming-source.patch`,
 which adds a `UWorldPartitionStreamingSourceComponent` to `AFlyingPawn`. Full evidence in
 [`vendor/cosys-airsim.md`](vendor/cosys-airsim.md).
 
@@ -2827,7 +2827,7 @@ probably geometry.
 
 ### What was built
 
-`scripts/watch_collisions.py` — an **independent** witness polling `simGetCollisionInfo` at 20 Hz.
+`runtime/local/watch_collisions.py` — an **independent** witness polling `simGetCollisionInfo` at 20 Hz.
 Separate from the mission node on purpose: a node reporting on its own crash is not a witness. It
 writes `collisions.json` continuously, so a run killed mid-flight still leaves evidence.
 
@@ -2887,7 +2887,7 @@ setpoint stream and `/fmu/out` during that 92 s are already recorded.
 
 - **`run_gate.py` does not use this yet.** The gate scores VOID/PASS/FAIL over N seeds and is
   still blind to impacts; a colliding seed will inflate its success rate.
-- `ros2_ws/src/evaluation/README.md` lists "collision count / CR" as a planned metric — the data
+- `ros2/src/evaluation/README.md` lists "collision count / CR" as a planned metric — the data
   now exists to populate it.
 - **Re-verify `SIM-19` slices 1 and 2** at 20 m with the witness on, since their acceptance
   evidence predates it.
@@ -2930,14 +2930,14 @@ all eleven say `0`.
 The path is not optional. `GPULidarSimpleParams.hpp:62` sets
 `async_capture_mode = (simmode_name == kSimModeTypeMultirotor)` **before** the JSON is parsed,
 so it is hardcoded on for every multirotor and there is no settings key to disable it. Our
-`sim/ue5/settings.json` runs a multirotor with `SensorType 8` enabled.
+`simulator/unreal/settings.json` runs a multirotor with `SensorType 8` enabled.
 
 Likely the same root cause as the `rpc::timeout … getGPULidarData` failures seen during
 `SIM-20`.
 
 ### The fix
 
-`patches/cosys-airsim/0006-gpulidar-empty-readback.patch` — gate `async_capture_ready_` on
+`simulator/unreal/patches/cosys-airsim/0006-gpulidar-empty-readback.patch` — gate `async_capture_ready_` on
 every `ReadPixels` result *and* the resulting `Num()`, and refuse to enter
 `ProcessCapturedBuffers` unless each buffer the loop will index holds `resolution_²` pixels. A
 frame that could not be read becomes a dropped scan and a `Warning` naming the size, instead of
@@ -2983,9 +2983,9 @@ one assertion text; the stack distinguished them all along.
 ### And it exposed a missing build route
 
 Patching Blocks by hand fixes one machine. Quickstart 0.2 builds the plugin from **pristine**
-vendor source and nothing applies `patches/cosys-airsim/*` to it; `convert_world.sh` only serves
+vendor source and nothing applies `simulator/unreal/patches/cosys-airsim/*` to it; `convert_world.sh` only serves
 *user* worlds. So Blocks — the default world and the gate world — never received an Unreal-side
-patch. **`scripts/build_blocks.sh`** (new) closes it, and running it showed **0005 had also been
+patch. **`runtime/local/build_blocks.sh`** (new) closes it, and running it showed **0005 had also been
 missing from Blocks for five days**, exactly as that patch's own "not yet wired into the build"
 note had warned.
 
@@ -3065,7 +3065,7 @@ actually fails.
 
 **Status:** 🟡 **open** — raised **2026-08-08** by the review of `SIM-23`.
 
-The rule deciding whether a patch under `patches/cosys-airsim/` belongs to the Unreal plugin or
+The rule deciding whether a patch under `simulator/unreal/patches/cosys-airsim/` belongs to the Unreal plugin or
 the ROS 2 wrapper now exists in **three** scripts:
 
 | script | routing predicate | apply / already / die |
@@ -3085,7 +3085,7 @@ the argument for the rule having one owner rather than three.
 
 ### What to do
 
-- Extract it to one place both callers use — a small `scripts/apply_vendor_patches.sh` taking a
+- Extract it to one place both callers use — a small `runtime/local/apply_vendor_patches.sh` taking a
   target directory and a side, or a Python helper if the shell gets awkward.
 - **Unit-test the predicate.** It is a pure function of a patch file's header and needs no
   simulator; `tests/` already covers `inject_airsim` and `apply_spawn` the same way. A silently
@@ -3212,9 +3212,18 @@ Recorded so they are not smuggled in:
   measurements that retired them, are preserved in [`history/`](history/) — nothing here
   depends on either.
 - **A second ROS 2 distro**, except via the documented, evidence-gated `ros2_distro_fallback`
-  entry in `versions.lock`.
+  entry in `third_party/versions.lock`.
 - **The applications people build on the simulator** — planners, language-driven navigation
   clients, benchmark harnesses. They are what the simulator is *for*; they are not what this
   repo ships.
 - **Anything touching the real aircraft.** A real flight needs explicit per-run operator
-  approval, every time (`.ai/AGENTS.md:120`).
+  approval, every time (`AGENTS.md:120`).
+
+## SIM-28 — Repository layout follows simulator ownership
+
+**Status:** `in progress` — 2026-08-10.
+
+The simulator's source, runtime lifecycle, containers, configuration, and third-party pins are
+currently interleaved at the repository root. Establish stable ownership boundaries without
+changing the ROS graph or SITL behavior. Verification is limited to static checks; no simulator
+run is required because this change moves paths only.

@@ -17,7 +17,7 @@ what you observe and update this file._
 ## 1. What this environment is for
 
 This is the development workbench for the simulator: **UE 5.8 + Cosys-AirSim + PX4 v1.16
-SITL + ROS 2 Jazzy**, brought up with `./scripts/sim_up.sh` and flown over ROS 2.
+SITL + ROS 2 Jazzy**, brought up with `./runtime/local/sim_up.sh` and flown over ROS 2.
 
 **This box is not the deployment target.** Docker on a plain machine is
 (`docs/docker/todo.md`, `D-08`) — the podman/distrobox nesting described below is how
@@ -70,7 +70,7 @@ hypothetical — they are about the two GPUs you actually have.
 The RTX 5060 Ti is **Blackwell (sm_120)** and has documented crashes on too-new drivers with
 GPU-heavy simulators. The RTX 3080 is a proven, stable renderer. Therefore:
 
-- **Render on GPU 0 (RTX 3080).** `scripts/sim_up.sh` enforces this at the container
+- **Render on GPU 0 (RTX 3080).** `runtime/local/sim_up.sh` enforces this at the container
   boundary — `--gpus '"device=nvidia.com/gpu=0"'` — and that is the right place for it.
 - **Infer on GPU 1 (RTX 5060 Ti).**
 - **Pin at the container boundary, not in the application.** Two independent reasons:
@@ -125,8 +125,8 @@ that are easy to get wrong:
 - **`/var/lib/docker` is the distrobox's own storage**, and the daemon self-reports
   `Name=drone-sim.carbonite`. The stack's containers die with the distrobox.
 - **The working tree is not nested.** `/home/deck` is the *host* home passed through by
-  distrobox, so every bind mount in the bring-up (`sim/ue5/settings.json`, `vendor/`,
-  `ros2_ws`, `out/`) resolves to a host-filesystem path. The processes are nested; the data
+  distrobox, so every bind mount in the bring-up (`simulator/unreal/settings.json`, `vendor/`,
+  `ros2`, `out/`) resolves to a host-filesystem path. The processes are nested; the data
   is not.
 
 ---
@@ -168,7 +168,7 @@ container. The fix in place:
   sudo systemctl restart docker
   ```
 - **The same Fedora/Ubuntu path mismatch reaches into an image.**
-  `docker/unreal.Dockerfile` symlinks `/usr/lib64/libGLX_nvidia.so.0` for exactly this
+  `containers/legacy/unreal.Dockerfile` symlinks `/usr/lib64/libGLX_nvidia.so.0` for exactly this
   reason. That symlink is a **`carbonite`-only workaround**, harmless but not general — on a
   native Ubuntu host with `nvidia-container-toolkit` the multiarch path is already correct,
   and the symlink would mask a genuine ICD problem rather than fix one.
@@ -181,16 +181,15 @@ container. The fix in place:
 /home/deck/Developments/
 ├─ models/                         # ~335 GB of local LLM/VLM weights (Qwen3.x, gemma, medgemma)
 └─ projects/drone-sim/
-   ├─ versions.lock                # every pin + the couplings CI asserts — the authority
-   ├─ .repos                       # vcstool manifest for the vendored upstream trees
-   ├─ docker/                      # px4 · unreal · ros2 · qgc · video · airsim-client images
-   ├─ scripts/                     # sim_up.sh (the only supported bring-up), gate, harness
-   ├─ ros2_ws/src/                 # the original glue: interfaces, bringup, control, …
-   ├─ sim/ue5/                     # settings.json — which sensors exist and how they are tuned
-   ├─ scenarios/                   # seeded scenario definitions
-   ├─ patches/cosys-airsim/        # recorded deviations from the pristine vendored tree
+   ├─ third_party/                 # sources.repos + versions.lock, the pin authority
+   ├─ simulator/unreal/            # settings, examples, and integration patches
+   ├─ ros2/src/                    # the original glue: interfaces, bringup, control, …
+   ├─ runtime/local/               # local bring-up, gate, and harness
+   ├─ runtime/runpod/              # Pod-local VNC and service lifecycle
+   ├─ containers/                  # supported stack image + legacy local images
+   ├─ config/                      # DDS profiles and seeded scenarios
    ├─ tests/                       # off-target tests (tier-1 CI)
-   ├─ vendor/                      # pinned upstream checkouts (git-ignored; see .repos)
+   ├─ vendor/                      # pinned upstream checkouts (git-ignored; see third_party/sources.repos)
    └─ docs/
       ├─ bench.md                  # ← this file
       ├─ conventions.md            # the frozen ROS 2 graph spec
@@ -222,7 +221,7 @@ a drive we do not own.
    is mechanical (`docs/docker/todo.md` `D-04`).
 5. **Version coupling is the dominant project risk** — `px4_msgs` branch-matched to the
    firmware, the engine image's Ubuntu 22.04 against ROS 2 Jazzy's 24.04. It is spelled out
-   in [`../versions.lock`](../versions.lock) and in `history/reference/`.
+   in [`../third_party/versions.lock`](../third_party/versions.lock) and in `history/reference/`.
 6. **Trust observation over this doc.** Re-run the checks in §7 if anything looks off, and
    update the values here.
 
@@ -231,7 +230,7 @@ a drive we do not own.
 ## 6a. Running commands on the host (verified 2026-07-29)
 
 Normally you don't — install into the container. But when a genuine host-side test is needed
-(and **approved**, per `.ai/AGENTS.md`), this is the working recipe. Every step below has a
+(and **approved**, per `AGENTS.md`), this is the working recipe. Every step below has a
 trap that cost time to find.
 
 ```bash

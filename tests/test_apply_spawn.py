@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
-_spec = importlib.util.spec_from_file_location("apply_spawn", REPO / "scripts" / "apply_spawn.py")
+_spec = importlib.util.spec_from_file_location("apply_spawn", REPO / "runtime" / "local" / "apply_spawn.py")
 sp = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(sp)
 
@@ -151,7 +151,7 @@ def test_yaw_is_left_alone_when_not_supplied():
 
 def test_the_committed_settings_file_can_be_placed():
     """Guards against the repo file drifting into a shape this cannot handle."""
-    src = REPO / "sim" / "ue5" / "settings.json"
+    src = REPO / "simulator" / "unreal" / "settings.json"
     d = json.loads(sp.strip_jsonc(src.read_text(encoding="utf-8")))
     out = sp.apply_spawn(d, sp.parse_spawn("50,-30,-10,315"))
     px4 = out["Vehicles"]["PX4"]

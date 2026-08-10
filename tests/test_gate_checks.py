@@ -15,12 +15,12 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
-_spec = importlib.util.spec_from_file_location("run_gate", REPO / "scripts" / "run_gate.py")
+_spec = importlib.util.spec_from_file_location("run_gate", REPO / "runtime" / "local" / "run_gate.py")
 rg = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(rg)
 
 _ospec = importlib.util.spec_from_file_location(
-    "check_ekf_origin", REPO / "scripts" / "check_ekf_origin.py")
+    "check_ekf_origin", REPO / "runtime" / "local" / "check_ekf_origin.py")
 ekf = importlib.util.module_from_spec(_ospec)
 _ospec.loader.exec_module(ekf)
 
@@ -92,7 +92,7 @@ def test_scenario_names_that_reach_the_shell_are_rejected(bad, tmp_path):
     """A scenario name lands in container paths and in an `rm -rf`. Phase 4 ingests
     external scenario sets, so this stops being hypothetical."""
     import importlib.util as iu
-    spec = iu.spec_from_file_location("run_scenario", REPO / "scripts" / "run_scenario.py")
+    spec = iu.spec_from_file_location("run_scenario", REPO / "runtime" / "local" / "run_scenario.py")
     rs = iu.module_from_spec(spec); spec.loader.exec_module(rs)
     f = tmp_path / "s.yaml"
     f.write_text(f'name: "{bad}"\n')
@@ -114,7 +114,7 @@ def test_runner_clears_the_result_before_a_run():
     flight that fails to start is scored from whatever a previous run left behind — and the
     gate calls run_flight for every seed, so that laundered a failure into a pass.
     """
-    src = (REPO / "scripts" / "run_scenario.py").read_text()
+    src = (REPO / "runtime" / "local" / "run_scenario.py").read_text()
     body = src.split("def run_flight")[1].split("\ndef ")[0]
     assert "result_in_container" in body.split("recorder = subprocess.Popen")[0], \
         "the result file must be removed BEFORE the flight, not after"
@@ -139,7 +139,7 @@ import ast
 import pathlib
 
 _CONTROL = (pathlib.Path(__file__).resolve().parent.parent
-            / "ros2_ws/src/control/control/offboard_control.py")
+            / "ros2/src/control/control/offboard_control.py")
 
 
 def _write_result_fn():
@@ -352,7 +352,7 @@ def test_origin_check_runs_inside_the_ros2_service_not_on_the_host():
     itself, so the assertion below is written against the PROPERTY -- the checker's argv is
     built by run_scenario's container helper, and nothing runs it locally -- rather than
     against whichever helper currently spells that."""
-    src = (REPO / "scripts" / "run_gate.py").read_text()
+    src = (REPO / "runtime" / "local" / "run_gate.py").read_text()
     assert "rs.dexec(" in src, (
         "the checker must be exec'd into the ROS 2 container via run_scenario's helper, "
         "so the container name has exactly one definition"
@@ -361,7 +361,7 @@ def test_origin_check_runs_inside_the_ros2_service_not_on_the_host():
         "the origin checker must NOT run on the gate host - there is no ros2 there"
     )
     # And the helper must genuinely enter a container, not shell out on the host.
-    rs_src = (REPO / "scripts" / "run_scenario.py").read_text()
+    rs_src = (REPO / "runtime" / "local" / "run_scenario.py").read_text()
     assert '"docker", "exec"' in rs_src, "dexec must be a real `docker exec`"
 
 

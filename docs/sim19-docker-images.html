@@ -286,7 +286,7 @@ dominated by the engine.</p></div>
 <div class="grid g2">
   <div class="panel">
   <p><strong>1 &middot; The NuttX / ARM toolchain &mdash; ~2.9 GB</strong></p>
-  <pre>docker/px4.Dockerfile:124
+  <pre>containers/legacy/px4.Dockerfile:124
 RUN bash Tools/setup/ubuntu.sh --no-sim-tools</pre>
   <p>PX4&rsquo;s own setup script installs the ARM cross-compiler unless <code>--no-nuttx</code> is
   passed. <strong>It was deliberately not passed</strong>, and the reason is good: real Pixhawk 6C
@@ -298,7 +298,7 @@ RUN bash Tools/setup/ubuntu.sh --no-sim-tools</pre>
 
   <div class="panel">
   <p><strong>2 &middot; The PX4 source tree &mdash; ~2.5 GB</strong></p>
-  <pre>docker/px4.Dockerfile:119
+  <pre>containers/legacy/px4.Dockerfile:119
 RUN git clone --recursive --branch ${PX4_TAG} \
     https://github.com/PX4/PX4-Autopilot.git .</pre>
   <p><code>--recursive</code> pulls every submodule, which is why <code>.git</code> alone is
@@ -402,7 +402,7 @@ stack comes up through all three bring-up barriers, and the example mission flie
 <div class="tw"><table>
   <thead><tr><th>#</th><th>Decision</th><th>Why it matters</th></tr></thead>
   <tbody>
-    <tr><td>1</td><td>Do the image <strong>names</strong> change?</td><td><strong>22 files</strong> reference the current names &mdash; <code>sim_up.sh</code>, <code>attach.sh</code>, <code>convert_world.sh</code>, <code>build_airsim_wrapper.sh</code>, five render/capture scripts, <code>versions.lock</code>, CI and eight docs. Keeping them identical makes the blast radius nearly zero.</td></tr>
+    <tr><td>1</td><td>Do the image <strong>names</strong> change?</td><td><strong>22 files</strong> reference the current names &mdash; <code>sim_up.sh</code>, <code>attach.sh</code>, <code>convert_world.sh</code>, <code>build_airsim_wrapper.sh</code>, five render/capture scripts, <code>third_party/versions.lock</code>, CI and eight docs. Keeping them identical makes the blast radius nearly zero.</td></tr>
     <tr><td>2</td><td>Must a <em>running</em> container be able to flash a Pixhawk?</td><td>Slice 1 assumes no, and keeps the capability <em>buildable</em> via <code>--target firmware</code>. If a running container must flash, the split has to change.</td></tr>
     <tr><td>3</td><td>The <strong>Vulkan ICD host assumption</strong> in <code>unreal.Dockerfile</code></td><td>Image, run command, or detection step? Now evidenced: the symlink is needed <em>only</em> on Fedora-family hosts and is harmless elsewhere. See <code>docs/gpu-in-docker.md</code>.</td></tr>
     <tr><td>4</td><td>Is <code>video</code> worth keeping at all?</td><td>11.1 GB to provide <code>ffmpeg</code>, used only by <code>encode_h264.sh</code> and the render scripts. As its own thin layer it is ~0.2 GB.</td></tr>

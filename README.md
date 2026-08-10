@@ -15,7 +15,7 @@ a Pixhawk 6C.
 
 ### 1. A photoreal simulator that flies, on your world
 
-Not a demo world with a drone bolted on. `scripts/sim_up.sh --world YourProject.uproject
+Not a demo world with a drone bolted on. `runtime/local/sim_up.sh --world YourProject.uproject
 --spawn 50,-30,-10` loads a project you authored, puts the vehicle where you asked, and hands
 back a stack whose EKF origin has been **verified rather than assumed**. Imagery is
 photorealistic on a **stock upstream plugin** — `simGetImages` matches Unreal's own render of
@@ -39,7 +39,7 @@ Two rules follow from it, both learned the hard way here:
   A branch is not a pin.
 - **Write Dockerfiles from evidence, not from documentation.** Getting to a running
   `airsim_node` took **four undocumented discoveries**, every one of them now a comment in
-  `scripts/build_airsim_wrapper.sh`; three of the steps that stood up the original Gazebo
+  `runtime/local/build_airsim_wrapper.sh`; three of the steps that stood up the original Gazebo
   baseline likewise deviated from this project's own reference docs. A Dockerfile written from
   the docs reproduces a **broken** stack.
 
@@ -54,7 +54,7 @@ PX4, the Micro-XRCE-DDS Agent, `px4_msgs`, Cosys-AirSim and QGroundControl are c
 **pinned upstreams**. The original work is the *glue*: the ROS 2 graph and its launch
 composition, the bring-up ordering, the scenario/eval harness, the measurement scripts, and the
 bring-your-own-world path. Vendored trees stay **byte-identical to upstream** — the three
-patches this stack needs live in [`patches/cosys-airsim/`](patches/cosys-airsim/) and are
+patches this stack needs live in [`simulator/unreal/patches/cosys-airsim/`](simulator/unreal/patches/cosys-airsim/) and are
 applied to a container-local copy, never to `vendor/`.
 
 ### 4. Sim-to-real parity — one ROS 2 graph, swap only the transport
@@ -85,10 +85,10 @@ render/infer split.
 ```bash
 gh auth token | docker login ghcr.io -u <github-user> --password-stdin   # EpicGames org + read:packages
 
-docker build -f docker/px4.Dockerfile    -t drone-sim/px4:v1.16.0 .
-docker build -f docker/qgc.Dockerfile    -t drone-sim/qgc:v1.16.0 .
-docker build -f docker/ros2.Dockerfile   -t drone-sim/ros2:v1.16.0 .
-docker build -f docker/unreal.Dockerfile -t drone-sim/unreal:ue5.8 .
+docker build -f containers/legacy/px4.Dockerfile    -t drone-sim/px4:v1.16.0 .
+docker build -f containers/legacy/qgc.Dockerfile    -t drone-sim/qgc:v1.16.0 .
+docker build -f containers/legacy/ros2.Dockerfile   -t drone-sim/ros2:v1.16.0 .
+docker build -f containers/legacy/unreal.Dockerfile -t drone-sim/unreal:ue5.8 .
 ```
 
 **Order does not matter.** Every image now builds from `ubuntu:24.04` (or, for the renderer, the
@@ -120,14 +120,14 @@ instead of surfacing later as a vehicle that will not arm.
 
 The ROS 2 image is the companion-computer side: ROS 2 Jazzy plus the wrapper's build
 dependencies (`ros-jazzy-geographic-msgs`, `ros-jazzy-mavros-msgs`, `python3-msgpack`, `patch`)
-and `docker/ros-profile.sh` at `/etc/profile.d/10-ros.sh`. It deliberately carries **no
+and `runtime/local/ros-profile.sh` at `/etc/profile.d/10-ros.sh`. It deliberately carries **no
 `ros-gz-bridge`** — `/clock` now comes from the simulator, remapped in `perception.launch.py`,
 so the bridge has no consumer.
 
 ### 2. Fetch the pinned upstream trees and build the plugin once
 
 ```bash
-vcs import vendor < .repos          # ~1.3 GB — Cosys-AirSim at the pinned SHA, not a branch
+vcs import vendor < third_party/sources.repos          # ~1.3 GB — Cosys-AirSim at the pinned SHA, not a branch
 
 docker run --rm -v "$PWD/vendor/Cosys-AirSim:/src" drone-sim/unreal:ue5.8 \
   bash -lc './build.sh --ue-root /home/ue4/UnrealEngine'
@@ -141,13 +141,13 @@ docker run --rm -v "$PWD/vendor/Cosys-AirSim:/src" drone-sim/unreal:ue5.8 \
 > [`docs/worklog/2026-08-01-c02-ue58-engine-image.md`](docs/worklog/2026-08-01-c02-ue58-engine-image.md).
 
 To fly a world of your own, inject the plugin into it once with
-`scripts/inject_airsim.py /path/to/YourProject.uproject` — pure text edits plus a folder copy,
+`runtime/local/inject_airsim.py /path/to/YourProject.uproject` — pure text edits plus a folder copy,
 no editor, no GUI, no display.
 
 ### 3. Bring the stack up
 
 ```bash
-./scripts/sim_up.sh
+./runtime/local/sim_up.sh
 ```
 
 **Four containers**, brought up **in the only order that works**. It waits for the vehicle to
@@ -198,8 +198,8 @@ works, not to be where you build. Your autonomy code stays yours: your image, yo
 your branch. It attaches to the running graph from outside:
 
 ```bash
-./scripts/attach.sh --image my/autonomy:latest ros2 run my_pkg my_node
-./scripts/attach.sh                 # or just an interactive shell, ROS 2 already sourced
+./runtime/local/attach.sh --image my/autonomy:latest ros2 run my_pkg my_node
+./runtime/local/attach.sh                 # or just an interactive shell, ROS 2 already sourced
 ```
 
 **A native `ros2` install needs no configuration at all.** A process in its own namespaces
@@ -256,19 +256,19 @@ because Fast-DDS delivers over shared memory (see *Network and ports* below).
 | `--vehicle NAME` | required only if your settings define several vehicles |
 | `--allow-below-origin` | permit a positive `Z` (i.e. genuinely below the origin) |
 > **A world usually needs converting first.** A project that ships its own `Source/` must be
-> compiled against UE5.8, and a World Partition level needs `patches/cosys-airsim/0005` or the
-> drone falls through it forever. `./scripts/convert_world.sh <your.uproject> --map /Game/Maps/X`
+> compiled against UE5.8, and a World Partition level needs `simulator/unreal/patches/cosys-airsim/0005` or the
+> drone falls through it forever. `./runtime/local/convert_world.sh <your.uproject> --map /Game/Maps/X`
 > does both — see [`docs/worlds.md`](docs/worlds.md).
 
 Each has an environment equivalent: `WORLD`, `SETTINGS_FILE`, `SPAWN`, `SPAWN_VEHICLE`,
 `SPAWN_ALLOW_BELOW`. **`Z` is NED — negative is UP**; `Z=10` puts the drone 10 m *underground*,
 which is why the script refuses a positive `Z` without the opt-in. The committed
-`sim/ue5/settings.json` is never modified: a run-time copy is written beside it.
+`simulator/unreal/settings.json` is never modified: a run-time copy is written beside it.
 
 ### 4. Build the wrapper and start the perception graph
 
 ```bash
-./scripts/build_airsim_wrapper.sh      # ~2 min
+./runtime/local/build_airsim_wrapper.sh      # ~2 min
 
 docker exec -d sim-ros2 bash -lc '
   source /opt/ros/jazzy/setup.bash
@@ -288,8 +288,8 @@ docker exec -d sim-ros2 bash -lc '
 ### 5. Fly it, and keep the evidence
 
 ```bash
-./scripts/run_park_tour.sh                                    # Blocks — the known-good control
-./scripts/run_park_tour.sh --world /path/CityPark.uproject \
+./runtime/local/run_park_tour.sh                                    # Blocks — the known-good control
+./runtime/local/run_park_tour.sh --world /path/CityPark.uproject \
     --spawn 50,-30,-10 --mode circle --radius 25 --altitude 8
 ```
 
@@ -307,14 +307,14 @@ out/park-tour-<UTC>/
 ```
 
 `--mode circle` streams a continuously moving setpoint with velocity feed-forward, so PX4 tracks
-a smooth arc instead of braking at every corner. `scripts/render_run_video.py` and
-`scripts/plot_run_path.py` derive an mp4 and a ground-track plot **from the bag**, so the picture
+a smooth arc instead of braking at every corner. `runtime/local/render_run_video.py` and
+`runtime/local/plot_run_path.py` derive an mp4 and a ground-track plot **from the bag**, so the picture
 and the verdict come from the same evidence and cannot drift apart.
 
 ### 6. Verify by value, not by topic list
 
 ```bash
-docker cp scripts/verify_sensors.py sim-ros2:/tmp/verify.py
+docker cp runtime/local/verify_sensors.py sim-ros2:/tmp/verify.py
 docker exec sim-ros2 bash -lc '
   source /opt/ros/jazzy/setup.bash
   source /airsim_root/ros2/install/setup.bash
@@ -367,14 +367,14 @@ subnet almost never forwards it.
 
 ```bash
 # LAN
-NET_MODE=host ./scripts/sim_up.sh
+NET_MODE=host ./runtime/local/sim_up.sh
 
 # VPN: start a discovery server anywhere BOTH machines can reach, BEFORE the stack.
 # `fastdds` ships in drone-sim/ros2, so you do not need ROS 2 installed on the host:
 docker run -d --name sim-ds --network host --entrypoint bash drone-sim/ros2:v1.16.0 \
     -lc 'fastdds discovery -i 0 -l 0.0.0.0 -p 11811'
 
-NET_MODE=host DISCOVERY_SERVER=127.0.0.1:11811 ./scripts/sim_up.sh
+NET_MODE=host DISCOVERY_SERVER=127.0.0.1:11811 ./runtime/local/sim_up.sh
 ```
 
 The server must be up **before** the stack, and it is not managed by `sim_up.sh` — `teardown`
@@ -390,7 +390,7 @@ On the **subscriber**, point at the same server and use the UDP-only profile:
 ```bash
 export ROS_DISCOVERY_SERVER=<server-ip>:11811
 export ROS_SUPER_CLIENT=true
-export FASTRTPS_DEFAULT_PROFILES_FILE=/path/to/configs/dds/udp-only.xml
+export FASTRTPS_DEFAULT_PROFILES_FILE=/path/to/config/dds/udp-only.xml
 ```
 
 Measured from a **second host** — a separate machine on the overlay, sharing no namespaces with
@@ -441,7 +441,7 @@ server is unambiguously what carried the graph.
 | Photorealistic imagery | ✅ | matches Unreal's own render to **1.15 of 255** across six scenes, on a **stock** plugin |
 | Bring your own world + deliberate spawn | ✅ | `--world` / `--spawn`, with a ground probe for unknown terrain |
 | Deterministic bring-up | ✅ | origin verified and repaired, or the run is refused — and now **10 cold starts in a row with zero VOID**, which is what that caveat was waiting for |
-| Recorded example mission | ✅ | `scripts/run_park_tour.sh` — MCAP, `summary.json`, video, ground track |
+| Recorded example mission | ✅ | `runtime/local/run_park_tour.sh` — MCAP, `summary.json`, video, ground track |
 | Flight gate | ✅ | **10/10, 100%, zero VOID** over independent seeded cold starts — 0.775–0.805 m worst error, 193–195 s per seed. VOID is excluded from the rate *and* blocks the criterion |
 | Dynamic actors in the world | 📋 | the RPC surface (`simSpawnObject`, `simSetObjectPose`) is known live in this build; nothing spawned yet — and it needs **no** project C++ and no plugin change |
 | Wind / environment control | 📋 | needs Cosys-AirSim's own wind API |
@@ -480,25 +480,18 @@ hardware — imagery at **20 Hz**, LiDAR at **10 Hz** — and measured throughpu
 ## Layout
 
 ```
-versions.lock            every pin, its status, and how it was verified — the authority
-.repos                   vcstool manifest for the vendored upstream trees
-docker/                  one Dockerfile per image — unreal, px4, ros2, qgc, video,
-                         airsim-client — plus the two entrypoints and the ROS profile
-scripts/sim_up.sh        the stack, in the only order that works
-scripts/                 wrapper build, flight gate, scenario runner, the example mission,
-                         and the measurement harnesses that produced the numbers above
-ros2_ws/src/             the glue: interfaces (mission contracts), bringup (launch
-                         composition), control (offboard + the park tour); perception,
-                         state_estimation, planning and evaluation are placeholders
-sim/ue5/                 settings.json — which sensors exist and how they are tuned,
-                         plus worked examples
-scenarios/               seeded mission definitions the gate runs
-patches/cosys-airsim/    three upstream defects, applied to a container-local copy only
-tests/                   off-target tests — the tier-1 CI suite
-vendor/                  pinned upstream checkouts (git-ignored; see .repos)
-out/                     run artifacts — MCAP, summary.json, video (git-ignored)
-docs/                    quickstart, the backlog, graph conventions, bench briefing,
-                         worklogs, and the retired stacks under history/
+third_party/                 source manifest and version lock for every pinned upstream
+simulator/unreal/            UE settings, examples, and Cosys-AirSim integration patches
+ros2/src/                    interfaces, launch composition, control, and future ROS packages
+runtime/local/               local bring-up, world conversion, gate, and measurement tools
+runtime/runpod/              Pod-local launcher, readiness, and VNC desktop lifecycle
+containers/stack/            the supported Fern/Runpod full-stack image
+containers/legacy/           prior multi-image local Docker workflow, retained during migration
+config/                      DDS profiles and seeded scenario definitions
+tests/                       off-target tier-1 CI suite
+vendor/                      pinned upstream checkouts (git-ignored; see third_party/sources.repos)
+out/                         run artifacts — MCAP, summary.json, video (git-ignored)
+docs/                        quickstart, backlog, graph conventions, and dated worklogs
 ```
 
 ## Where to start
@@ -512,7 +505,7 @@ docs/                    quickstart, the backlog, graph conventions, bench brief
 | [`docs/gpu-in-docker.md`](docs/gpu-in-docker.md) | **How the GPU reaches the container** — CDI, the Vulkan ICD path trap, and six commands that prove hardware rendering rather than a software fallback |
 | [`docs/worlds.md`](docs/worlds.md) ([HTML](docs/worlds.html)) | **Bring your own world** — converting a third-party Unreal project: injection, the UE5.8 build fixes, World Partition, and how to tell a converted world actually flies |
 | [`docs/conventions.md`](docs/conventions.md) | The **frozen** ROS 2 graph — these names reach the aircraft unchanged |
-| [`versions.lock`](versions.lock) | Every pin, its status, and how it was verified |
+| [`third_party/versions.lock`](third_party/versions.lock) | Every pin, its status, and how it was verified |
 | [`docs/bench.md`](docs/bench.md) | The machine and container this runs on, and the GPU split |
 | [`docs/nvenc-driver-blocker.md`](docs/nvenc-driver-blocker.md) | Why GPU video encode is unreachable on this driver |
 | [`docs/worklog/`](docs/worklog/) | Dated record of each investigation, with the evidence and the dead ends |
@@ -523,15 +516,15 @@ docs/                    quickstart, the backlog, graph conventions, bench brief
 ## Local CI
 
 ```bash
-./scripts/run_local_ci.sh          # fast checks, ~30 s
-./scripts/run_local_ci.sh --gate   # + the seeded flight gate
+./runtime/local/run_local_ci.sh          # fast checks, ~30 s
+./runtime/local/run_local_ci.sh --gate   # + the seeded flight gate
 ```
 
 The fast checks are the same ones GitHub Actions runs on every push, so a local pass means the
 same thing: off-target tests, shell and Python parse checks, **every `drone-sim/…` image
-reference names an image declared in `versions.lock`** (`scripts/check_image_refs.py`), `.repos`
+reference names an image declared in `third_party/versions.lock`** (`runtime/local/check_image_refs.py`), `third_party/sources.repos`
 agrees with the lock, every worklog has an HTML render and an index card, the attribution sweep
-over every tracked file (`scripts/check_attribution.sh`), and every `versions.lock` CONFLICT is
+over every tracked file (`runtime/local/check_attribution.sh`), and every `third_party/versions.lock` CONFLICT is
 documented.
 
 **The flight gate is not automated.** It cannot run on a hosted runner — it needs a GPU and tens
