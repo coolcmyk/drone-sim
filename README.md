@@ -51,9 +51,7 @@ tests/           Automated checks
 Build the documentation site locally with:
 
 ```bash
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r docs/requirements.txt -c docs/constraints.txt
+make docs-venv
 make html
 ```
 
